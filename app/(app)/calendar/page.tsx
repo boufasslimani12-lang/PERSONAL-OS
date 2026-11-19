@@ -1,7 +1,7 @@
 import { requireUser } from "@/lib/supabase/server";
 import { addDaysISO } from "@/lib/dates";
 import { getDateContext } from "@/lib/server/date-context";
-import { expandEvents } from "@/lib/engine/calendar";
+import { eventRangeFilter, eventRangeUpperBound, expandEvents } from "@/lib/engine/calendar";
 import { CalendarView, type CalItem } from "./calendar-view";
 
 export const metadata = { title: "Calendar" };
@@ -15,7 +15,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const { supabase } = await requireUser();
 
   const [events, tasks, workouts, study, goals, assessments, areas] = await Promise.all([
-    supabase.from("events").select("*").or(`start_at.lte.${to}T23:59:59,recurrence.not.is.null`),
+    supabase.from("events").select("*").lte("start_at", eventRangeUpperBound(to)).or(eventRangeFilter(from, to)),
     supabase.from("tasks").select("id,title,due_date,due_time,status,priority,life_area_id").gte("due_date", from).lte("due_date", to).is("parent_task_id", null),
     supabase.from("workouts").select("id,name,started_at,ended_at").gte("started_at", from).lte("started_at", `${to}T23:59:59`),
     supabase.from("study_sessions").select("id,started_at,duration_minutes,subject_id,subjects(name)").gte("started_at", from).lte("started_at", `${to}T23:59:59`),

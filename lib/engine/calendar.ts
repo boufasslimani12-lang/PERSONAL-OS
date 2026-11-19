@@ -9,6 +9,19 @@ export interface EventLike {
   recurrence: string | null;
   recurrence_until: string | null;
 }
+/**
+ * PostgREST filter for events that can produce an occurrence in [from, to]: one-off events inside the range
+ * (±1 day of slack for time-zone offsets) and recurring events that started before `to` and haven't ended
+ * before `from`. Use with `.lte("start_at", …)` from eventRangeUpperBound().
+ */
+export function eventRangeFilter(from: string, to: string): string {
+  const lower = addDaysISO(from, -1);
+  return `start_at.gte.${lower},and(recurrence.not.is.null,or(recurrence_until.is.null,recurrence_until.gte.${from}))`;
+}
+export function eventRangeUpperBound(to: string): string {
+  return `${addDaysISO(to, 1)}T23:59:59Z`;
+}
+
 export type Occurrence<T> = T & { occurrence_date: string; occurrence_start: string; occurrence_end: string | null };
 
 export function expandEvents<T extends EventLike>(events: T[], from: string, to: string, tz?: string): Occurrence<T>[] {

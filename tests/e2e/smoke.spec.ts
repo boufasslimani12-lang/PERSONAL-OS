@@ -189,6 +189,17 @@ test.describe.serial("core journeys", () => {
     await page.fill("#title", "Dentist");
     await page.getByRole("button", { name: "Create", exact: true }).click();
     await expect(page.locator("main")).toContainText("Dentist");
+
+    // A weekly event that started four weeks ago must still be expanded into this week's agenda.
+    const past = new Date(Date.now() - 28 * 86_400_000);
+    const wall = new Intl.DateTimeFormat("en-CA", { timeZone: "Africa/Casablanca", year: "numeric", month: "2-digit", day: "2-digit" }).format(past) + "T18:00";
+    await page.getByRole("button", { name: "New event" }).click();
+    await page.fill("#title", "Weekly sync");
+    await page.fill("#start_at", wall);
+    await page.fill("#end_at", wall.replace("T18:00", "T19:00"));
+    await page.selectOption("#recurrence", "weekly");
+    await page.getByRole("button", { name: "Create", exact: true }).click();
+    await expect(page.locator("main")).toContainText("Weekly sync");
     void problems;
   });
 
