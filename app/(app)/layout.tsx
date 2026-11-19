@@ -1,7 +1,11 @@
 import { requireUser } from "@/lib/supabase/server";
 import { Sidebar, MobileNav } from "@/components/layout/sidebar";
+import { SetupRequired } from "@/components/layout/setup-required";
+import { missingSupabaseEnv } from "@/lib/supabase/config";
 
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
+  const missing = missingSupabaseEnv();
+  if (missing.length) return <SetupRequired missing={missing} />;
   const { supabase, user } = await requireUser();
   const { data: profile } = await supabase.from("profiles").select("display_name").eq("user_id", user.id).maybeSingle();
   return (

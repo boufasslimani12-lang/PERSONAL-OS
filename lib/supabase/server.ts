@@ -4,6 +4,7 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { createServerClient } from "@supabase/ssr";
 import type { Database } from "./database.types";
+import { missingSupabaseEnv } from "./config";
 
 export async function getSupabaseServer() {
   const cookieStore = await cookies();
@@ -27,6 +28,8 @@ export async function getSupabaseServer() {
 
 /** Returns an authenticated client + user, redirecting to /login when signed out. Cached per request. */
 export const requireUser = cache(async () => {
+  // Misconfigured deployment: /login renders a "Configuration required" screen instead of crashing.
+  if (missingSupabaseEnv().length) redirect("/login");
   const supabase = await getSupabaseServer();
   const { data } = await supabase.auth.getUser();
   if (!data.user) redirect("/login");
