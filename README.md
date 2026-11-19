@@ -77,4 +77,5 @@ Site URL and `https://<domain>/auth/callback` as a redirect URL.
 - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — structure, data flow, conventions
 - [docs/DATABASE.md](docs/DATABASE.md) — tables, relationships, RLS, storage
 - [docs/ANALYTICS.md](docs/ANALYTICS.md) — exactly how every percentage is calculated
+- [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — services, URLs, configuration and go-live checklist
 - [CLAUDE.md](CLAUDE.md) — guide for AI-assisted development
