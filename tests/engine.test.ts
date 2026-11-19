@@ -211,3 +211,17 @@ test("time zone: datetime inputs round-trip in the profile zone", () => {
     assert.equal(fromZonedWallTime(toZonedWallTime(ts, "Europe/Paris"), "Europe/Paris"), ts);
   }
 });
+
+import { buildCsp, createNonce } from "../lib/security/csp.ts";
+test("CSP: nonce-based scripts, Supabase-only connections, no framing", () => {
+  const nonce = createNonce();
+  const csp = buildCsp({ nonce, supabaseUrl: "https://abc.supabase.co", isDev: false });
+  assert.match(csp, new RegExp(`script-src 'self' 'nonce-${nonce.replace(/[+/=]/g, "\\$&")}' 'strict-dynamic'`));
+  assert.ok(!/script-src[^;]*unsafe-inline/.test(csp));
+  assert.ok(!/unsafe-eval/.test(csp));
+  assert.ok(csp.includes("connect-src 'self' https://abc.supabase.co wss://abc.supabase.co"));
+  assert.ok(csp.includes("frame-ancestors 'none'"));
+  assert.ok(csp.includes("object-src 'none'"));
+  assert.notEqual(createNonce(), createNonce());
+  assert.ok(buildCsp({ nonce, supabaseUrl: "", isDev: true }).includes("'unsafe-eval'"));
+});
