@@ -6,7 +6,7 @@ import { PageHeader, Tabs, EmptyState } from "@/components/ui/misc";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { EntityForm, useFormState, type Field } from "@/components/forms/entity-form";
-import { addDaysISO, addMonthsISO, eachDayISO, formatDate, startOfMonthISO, endOfMonthISO, startOfWeekISO, todayISO } from "@/lib/dates";
+import { addDaysISO, addMonthsISO, eachDayISO, endOfMonthISO, formatDate, formatTime, fromZonedWallTime, hourInZone, startOfMonthISO, startOfWeekISO } from "@/lib/dates";
 import { cn } from "@/lib/utils";
 import type { Row } from "@/lib/types";
 
@@ -20,12 +20,11 @@ const SOURCE_HREF: Record<CalItem["source"], string> = { event: "", task: "/task
 
 function timeLabel(i: CalItem) {
   if (!i.start) return "";
-  return new Date(i.start).toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit" });
+  return formatTime(i.start);
 }
 
-export function CalendarView({ anchor, view, items, events }: { anchor: string; view: View; items: CalItem[]; events: Row<"events">[]; areas: string[] }) {
+export function CalendarView({ today, anchor, view, items, events }: { today: string; anchor: string; view: View; items: CalItem[]; events: Row<"events">[]; areas: string[] }) {
   const router = useRouter();
-  const today = todayISO();
   const form = useFormState<Row<"events">>();
   const go = (date: string, v: View = view) => router.push(`/calendar?date=${date}&view=${v}`);
   const step = (dir: 1 | -1) => go(view === "month" ? addMonthsISO(anchor, dir) : view === "week" ? addDaysISO(anchor, 7 * dir) : view === "day" ? addDaysISO(anchor, dir) : addDaysISO(anchor, 14 * dir));
@@ -47,7 +46,7 @@ export function CalendarView({ anchor, view, items, events }: { anchor: string; 
   ];
 
   const newEvent = (date: string, hour = 9) => {
-    const d = new Date(`${date}T${String(hour).padStart(2, "0")}:00`);
+    const d = new Date(fromZonedWallTime(`${date}T${String(hour).padStart(2, "0")}:00`));
     form.create({ kind: "event", start_at: d.toISOString(), end_at: new Date(d.getTime() + 3600000).toISOString(), color: "#6366f1", all_day: false });
   };
   const openItem = (i: CalItem) => {
@@ -164,7 +163,7 @@ function DayList({ date, items, onItem, onNew }: { date: string; items: CalItem[
       )}
       <div>
         {hours.map((h) => {
-          const at = timed.filter((i) => new Date(i.start!).getHours() === h);
+          const at = timed.filter((i) => hourInZone(new Date(i.start!)) === h);
           return (
             <div key={h} className="group flex min-h-11 gap-3 border-b border-border/60 last:border-0">
               <span className="w-12 shrink-0 pt-1 text-right text-[11px] text-muted-foreground">{String(h).padStart(2, "0")}:00</span>
@@ -172,7 +171,7 @@ function DayList({ date, items, onItem, onNew }: { date: string; items: CalItem[
                 {at.map((i) => (
                   <button key={i.key} onClick={() => onItem(i)} className="flex w-full items-center gap-2 rounded-md border-l-4 bg-muted/50 px-2 py-1 text-left text-sm hover:bg-muted" style={{ borderColor: i.color }}>
                     <span className="font-medium">{i.title}</span>
-                    <span className="text-xs text-muted-foreground">{timeLabel(i)}{i.end ? `–${new Date(i.end).toLocaleTimeString("en", { hour: "2-digit", minute: "2-digit" })}` : ""}{i.meta ? ` · ${i.meta}` : ""}</span>
+                    <span className="text-xs text-muted-foreground">{timeLabel(i)}{i.end ? `–${formatTime(i.end)}` : ""}{i.meta ? ` · ${i.meta}` : ""}</span>
                     {i.recurring && <Repeat className="size-3 text-muted-foreground" />}
                   </button>
                 ))}

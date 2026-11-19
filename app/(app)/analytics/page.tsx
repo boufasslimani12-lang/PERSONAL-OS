@@ -34,16 +34,16 @@ export default async function AnalyticsPage() {
   const inWeek = (d: string, w: string) => d >= w && d < addDaysISO(w, 7);
   const weekly = weeks.map((w) => {
     const end = addDaysISO(w, 6);
-    const tr = taskCompletionRate(s.tasks, s.completions, w, end, today);
+    const tr = taskCompletionRate(s.tasks, s.completions, w, end, today, s.tz);
     const hr = aggregateConsistency(s.habits, s.habitLogs, w, end, today, s.weekStartsOn);
     const h = (rows: { d: string; m: number }[]) => Math.round(rows.filter((r) => inWeek(r.d, w)).reduce((a, r) => a + r.m, 0) / 6) / 10;
     return {
       week: formatDate(w),
       tasks: pct(tr.rate), habits: pct(hr.rate),
-      study: h((study.data ?? []).map((x) => ({ d: x.started_at.slice(0, 10), m: x.duration_minutes }))),
+      study: h((study.data ?? []).map((x) => ({ d: s.dates.dateOf(x.started_at), m: x.duration_minutes }))),
       skills: h((skillS.data ?? []).map((x) => ({ d: x.session_date, m: x.duration_minutes }))),
       languages: h((langS.data ?? []).map((x) => ({ d: x.session_date, m: x.duration_minutes }))),
-      workouts: (workouts.data ?? []).filter((x) => inWeek(x.started_at.slice(0, 10), w)).length,
+      workouts: (workouts.data ?? []).filter((x) => inWeek(s.dates.dateOf(x.started_at), w)).length,
     };
   });
 
@@ -59,7 +59,7 @@ export default async function AnalyticsPage() {
   });
   const allGoals = s.goals.filter((g) => g.status !== "cancelled");
   const goalCompletion = allGoals.length ? (allGoals.filter((g) => g.status === "completed").length / allGoals.length) * 100 : null;
-  const tr30 = taskCompletionRate(s.tasks, s.completions, s.window.from, today, today);
+  const tr30 = taskCompletionRate(s.tasks, s.completions, s.window.from, today, today, s.tz);
   const hr30 = aggregateConsistency(s.habits, s.habitLogs, s.window.from, today, today, s.weekStartsOn);
   const skillProgress = (skills.data ?? []).length ? (skills.data ?? []).reduce((a, k) => a + Math.min(100, (k.current_level / k.target_level) * 100), 0) / skills.data!.length : null;
   const hasWeekly = weekly.some((w) => w.tasks !== null || w.habits !== null);

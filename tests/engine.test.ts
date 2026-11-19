@@ -182,3 +182,32 @@ test("markdown is escaped and only safe links survive", () => {
   assert.ok(html.includes('href="https://example.com"'));
   assert.ok(html.includes("<ul><li>a</li><li>b</li></ul>"));
 });
+
+import { dateInZone, hourInZone, isValidTimeZone } from "../lib/dates.ts";
+test("time zone: calendar day and hour follow the profile zone, not the server's", () => {
+  const instant = new Date("2026-01-01T23:30:00Z"); // 00:30 on Jan 2 in Casablanca (UTC+1)
+  assert.equal(dateInZone(instant, "Africa/Casablanca"), "2026-01-02");
+  assert.equal(dateInZone(instant, "UTC"), "2026-01-01");
+  assert.equal(dateInZone(instant, "America/New_York"), "2026-01-01");
+  assert.equal(hourInZone(instant, "Africa/Casablanca"), 0);
+  assert.equal(isValidTimeZone("Africa/Casablanca"), true);
+  assert.equal(isValidTimeZone("Not/AZone"), false);
+});
+
+test("calendar: occurrences use the event's local day in the given zone", () => {
+  const ev = { id: "e", start_at: "2026-01-04T23:30:00Z", end_at: null, recurrence: "weekly", recurrence_until: null };
+  const occ = expandEvents([ev], "2026-01-01", "2026-01-20", "Africa/Casablanca");
+  assert.deepEqual(occ.map((o) => o.occurrence_date), ["2026-01-05", "2026-01-12", "2026-01-19"]);
+  assert.equal(occ[1].occurrence_start, "2026-01-11T23:30:00.000Z");
+});
+
+import { toZonedWallTime, fromZonedWallTime } from "../lib/dates.ts";
+test("time zone: datetime inputs round-trip in the profile zone", () => {
+  assert.equal(toZonedWallTime("2026-01-01T23:30:00.000Z", "Africa/Casablanca"), "2026-01-02T00:30");
+  assert.equal(fromZonedWallTime("2026-01-02T00:30", "Africa/Casablanca"), "2026-01-01T23:30:00.000Z");
+  assert.equal(fromZonedWallTime("2026-07-01T09:00", "America/New_York"), "2026-07-01T13:00:00.000Z"); // EDT
+  assert.equal(fromZonedWallTime("2026-01-15T09:00", "America/New_York"), "2026-01-15T14:00:00.000Z"); // EST
+  for (const ts of ["2026-03-29T01:30:00.000Z", "2026-10-25T12:00:00.000Z"]) {
+    assert.equal(fromZonedWallTime(toZonedWallTime(ts, "Europe/Paris"), "Europe/Paris"), ts);
+  }
+});

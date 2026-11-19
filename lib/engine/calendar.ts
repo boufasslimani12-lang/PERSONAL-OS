@@ -1,6 +1,6 @@
 // Expands recurring events into concrete occurrences inside [from, to] (ISO dates, inclusive).
 // Occurrences are virtual — nothing is duplicated in the database.
-import { addDaysISO, addMonthsISO, toISODate } from "../dates.ts";
+import { addDaysISO, addMonthsISO, dateInZone, daysBetween } from "../dates.ts";
 
 export interface EventLike {
   id: string;
@@ -11,17 +11,15 @@ export interface EventLike {
 }
 export type Occurrence<T> = T & { occurrence_date: string; occurrence_start: string; occurrence_end: string | null };
 
-export function expandEvents<T extends EventLike>(events: T[], from: string, to: string): Occurrence<T>[] {
+export function expandEvents<T extends EventLike>(events: T[], from: string, to: string, tz?: string): Occurrence<T>[] {
   const out: Occurrence<T>[] = [];
   for (const e of events) {
     const start = new Date(e.start_at);
     const durationMs = e.end_at ? new Date(e.end_at).getTime() - start.getTime() : null;
-    const firstDate = toISODate(start);
+    const firstDate = dateInZone(start, tz);
     const until = e.recurrence_until && e.recurrence_until < to ? e.recurrence_until : to;
     const push = (date: string) => {
-      const [y, m, d] = date.split("-").map(Number);
-      const s = new Date(start);
-      s.setFullYear(y, m - 1, d);
+      const s = new Date(start.getTime() + daysBetween(firstDate, date) * 86_400_000);
       out.push({ ...e, occurrence_date: date, occurrence_start: s.toISOString(), occurrence_end: durationMs !== null ? new Date(s.getTime() + durationMs).toISOString() : null });
     };
     if (!e.recurrence) {

@@ -1,12 +1,14 @@
 import { requireUser } from "@/lib/supabase/server";
-import { addDaysISO, todayISO } from "@/lib/dates";
+import { addDaysISO } from "@/lib/dates";
+import { getDateContext } from "@/lib/server/date-context";
 import { FitnessView } from "./fitness-view";
 
 export const metadata = { title: "Fitness & Health" };
 
 export default async function FitnessPage() {
   const { supabase } = await requireUser();
-  const since = addDaysISO(todayISO(), -365);
+  const { today } = await getDateContext();
+  const since = addDaysISO(today, -365);
   const [exercises, templates, templateExercises, workouts, metrics] = await Promise.all([
     supabase.from("exercises").select("*").order("name"),
     supabase.from("workout_templates").select("*").is("archived_at", null).order("sort_order").order("created_at"),

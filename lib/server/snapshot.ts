@@ -1,6 +1,7 @@
 import "server-only";
 import { requireUser } from "@/lib/supabase/server";
-import { addDaysISO, todayISO, startOfMonthISO, addMonthsISO, endOfMonthISO } from "@/lib/dates";
+import { getDateContext } from "@/lib/server/date-context";
+import { addDaysISO, startOfMonthISO, addMonthsISO, endOfMonthISO } from "@/lib/dates";
 import { buildGoalProgressIndex } from "@/lib/engine/goals";
 import { aggregateConsistency } from "@/lib/engine/habits";
 import { taskCompletionRate } from "@/lib/engine/tasks";
@@ -14,7 +15,8 @@ export const SCORE_WINDOW_DAYS = 30;
  */
 export async function loadLifeSnapshot() {
   const { supabase, user } = await requireUser();
-  const today = todayISO();
+  const dates = await getDateContext();
+  const { today, tz } = dates;
   const historyFrom = addMonthsISO(startOfMonthISO(today), -6);
 
   const [profile, areas, goals, milestones, tasks, completions, habits, habitLogs] = await Promise.all([
@@ -31,7 +33,7 @@ export async function loadLifeSnapshot() {
   const err = [profile, areas, goals, milestones, tasks, completions, habits, habitLogs].find((r) => r.error)?.error;
   if (err) throw new Error(err.message);
 
-  const weekStartsOn = profile.data?.week_starts_on ?? 1;
+  const weekStartsOn = dates.weekStartsOn;
   const goalIndex = buildGoalProgressIndex(goals.data!, milestones.data!, tasks.data!);
   const from = addDaysISO(today, -(SCORE_WINDOW_DAYS - 1));
   const goalsById = new Map(goals.data!.map((g) => [g.id, g]));
@@ -48,7 +50,7 @@ export async function loadLifeSnapshot() {
       const goalProgress = areaGoals.map((g) => goalIndex.get(g.id).value).filter((v): v is number => v !== null);
       const areaTasks = tasks.data!.filter((t) => t.life_area_id === a.id);
       const ids = taskIdsByArea.get(a.id) ?? new Set();
-      const tr = taskCompletionRate(areaTasks, completions.data!.filter((c) => ids.has(c.task_id)), from, today, today);
+      const tr = taskCompletionRate(areaTasks, completions.data!.filter((c) => ids.has(c.task_id)), from, today, today, tz);
       const areaHabits = habits.data!.filter((h) => h.life_area_id === a.id);
       const hr = aggregateConsistency(areaHabits, habitLogs.data!, from, today, today, weekStartsOn);
       return { ...scoreArea({ id: a.id, goalProgress, taskRate: tr.rate, habitRate: hr.rate }), name: a.name, color: a.color, key: a.key, icon: a.icon };
@@ -58,6 +60,8 @@ export async function loadLifeSnapshot() {
     supabase,
     user,
     today,
+    tz,
+    dates,
     profile: profile.data,
     weekStartsOn,
     areas: areas.data!,

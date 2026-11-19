@@ -8,7 +8,7 @@ import { Input, Select } from "@/components/ui/form";
 import { EntityForm, useFormState, type Field } from "@/components/forms/entity-form";
 import { BarSeriesChart, LineSeriesChart } from "@/components/charts";
 import { useDb } from "@/lib/hooks/use-db";
-import { addDaysISO, formatDate, formatDateTime, formatMinutes, startOfWeekISO, todayISO } from "@/lib/dates";
+import { addDaysISO, formatDate, formatDateTime, formatMinutes, startOfWeekISO, todayISO, isoFromTimestamp } from "@/lib/dates";
 import { personalRecords, totalVolume, bmi, estimated1RM } from "@/lib/engine/fitness";
 import { formatNumber } from "@/lib/format";
 import type { Row } from "@/lib/types";
@@ -51,7 +51,7 @@ export function FitnessView({ exercises, templates, templateExercises, workouts,
   const finished = workouts.filter((w) => w.ended_at);
   const weeks = Array.from({ length: 12 }, (_, i) => startOfWeekISO(addDaysISO(today, -7 * (11 - i))));
   const freq = weeks.map((w) => {
-    const ws = finished.filter((x) => x.started_at.slice(0, 10) >= w && x.started_at.slice(0, 10) < addDaysISO(w, 7));
+    const ws = finished.filter((x) => isoFromTimestamp(x.started_at) >= w && isoFromTimestamp(x.started_at) < addDaysISO(w, 7));
     return { week: formatDate(w), workouts: ws.length, volume: Math.round(totalVolume(sets.filter((s) => ws.some((x) => x.id === s.workout_id)))) };
   });
   const thisWeek = freq[freq.length - 1].workouts;
@@ -273,7 +273,7 @@ function ExerciseProgression({ exercises, sets, workouts }: { exercises: Row<"ex
   const used = exercises.filter((e) => sets.some((s) => s.exercise_id === e.id && s.completed && s.weight));
   const [id, setId] = useState(used[0]?.id ?? "");
   if (!used.length) return null;
-  const wDate = new Map(workouts.map((w) => [w.id, w.started_at.slice(0, 10)]));
+  const wDate = new Map(workouts.map((w) => [w.id, isoFromTimestamp(w.started_at)]));
   const byDate = new Map<string, { top: number; e1rm: number }>();
   for (const s of sets) {
     if (s.exercise_id !== id || !s.completed || !s.weight || !s.reps) continue;

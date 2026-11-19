@@ -1,7 +1,7 @@
 // Task engine. Every completion (one-off or recurring occurrence) writes a task_completions row whose
 // occurrence_date is the due date it satisfied (or the completion day for undated tasks).
 // Completion rate for a window = completions in window / (completions in window + open tasks due in window up to today).
-import { addDaysISO, addMonthsISO, dayOfWeek, type ISODate } from "../dates.ts";
+import { addDaysISO, addMonthsISO, dateInZone, dayOfWeek, type ISODate } from "../dates.ts";
 
 export type Recurrence = "daily" | "weekdays" | "weekly" | "monthly";
 
@@ -31,10 +31,10 @@ export function isOverdue(t: TaskLike2, today: ISODate) {
 
 export interface Rate { done: number; total: number; rate: number | null }
 
-export function taskCompletionRate(tasks: TaskLike2[], completions: CompletionLike[], from: ISODate, to: ISODate, today: ISODate): Rate {
+export function taskCompletionRate(tasks: TaskLike2[], completions: CompletionLike[], from: ISODate, to: ISODate, today: ISODate, tz?: string): Rate {
   const end = to > today ? today : to;
   const done = completions.filter((c) => {
-    const d = c.occurrence_date ?? c.completed_at.slice(0, 10);
+    const d = c.occurrence_date ?? dateInZone(new Date(c.completed_at), tz);
     return d >= from && d <= end;
   }).length;
   const open = tasks.filter(

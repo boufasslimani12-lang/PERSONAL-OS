@@ -8,6 +8,7 @@ import { Checkbox, Input, Label, Select, Textarea } from "@/components/ui/form";
 import { useDb } from "@/lib/hooks/use-db";
 import type { TableName } from "@/lib/types";
 import { cn } from "@/lib/utils";
+import { fromZonedWallTime, toZonedWallTime } from "@/lib/dates";
 
 export type FieldType = "text" | "textarea" | "markdown" | "number" | "date" | "time" | "datetime" | "select" | "checkbox" | "color" | "tags" | "url";
 
@@ -33,11 +34,7 @@ type Values = Record<string, unknown>;
 function toInput(f: Field, v: unknown): unknown {
   if (v === null || v === undefined) return f.type === "checkbox" ? false : "";
   if (f.type === "tags" && Array.isArray(v)) return v.join(", ");
-  if (f.type === "datetime" && typeof v === "string") {
-    const d = new Date(v);
-    const pad = (n: number) => String(n).padStart(2, "0");
-    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
-  }
+  if (f.type === "datetime" && typeof v === "string") return toZonedWallTime(v);
   if (f.type === "time" && typeof v === "string") return v.slice(0, 5);
   return v;
 }
@@ -81,7 +78,7 @@ function fromInput(f: Field, raw: unknown): unknown {
   const s = typeof raw === "string" ? raw.trim() : raw;
   if (s === "" || s === undefined || s === null) return f.required ? "" : null;
   if (f.type === "number") return Number(s);
-  if (f.type === "datetime") return new Date(String(s)).toISOString();
+  if (f.type === "datetime") return fromZonedWallTime(String(s));
   return s;
 }
 

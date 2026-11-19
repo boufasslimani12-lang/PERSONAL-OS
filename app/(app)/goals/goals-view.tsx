@@ -11,7 +11,7 @@ import { EntityForm, useFormState, type Field } from "@/components/forms/entity-
 import { TaskRow } from "@/components/shared/task-row";
 import { GOAL_LEVELS, GOAL_STATUSES, PRIORITIES, optionLabel, optionTone } from "@/lib/constants";
 import { deadlineState, type GoalProgress } from "@/lib/engine/goals";
-import { formatDate, relativeDayLabel, todayISO } from "@/lib/dates";
+import { formatDate, relativeDayLabel, todayISO, isoFromTimestamp } from "@/lib/dates";
 import { useDb } from "@/lib/hooks/use-db";
 import { ToggleCheck } from "@/components/shared/toggle-check";
 import { formatPct } from "@/lib/format";
@@ -202,7 +202,7 @@ function GoalDetail({ goal, goals, milestones, tasks, progress, area, onClose, o
               {progress?.basis === "manual" && "Manual progress"}
               {progress?.basis === "auto" && `Automatic: ${progress.doneUnits} of ${progress.units} items complete (sub-goals, milestones, tasks)`}
               {progress?.basis === "empty" && "Automatic: add sub-goals, milestones or tasks to measure progress"}
-              {progress?.basis === "completed" && `Completed ${goal.completed_at ? formatDate(goal.completed_at.slice(0, 10), { month: "short", day: "numeric", year: "numeric" }) : ""}`}
+              {progress?.basis === "completed" && `Completed ${goal.completed_at ? formatDate(isoFromTimestamp(goal.completed_at), { month: "short", day: "numeric", year: "numeric" }) : ""}`}
               {progress?.basis === "cancelled" && "Cancelled — excluded from progress"}
             </p>
             <p>{goal.start_date && `Start ${formatDate(goal.start_date)}`}{goal.target_date && ` · Target ${formatDate(goal.target_date, { month: "short", day: "numeric", year: "numeric" })}`}</p>

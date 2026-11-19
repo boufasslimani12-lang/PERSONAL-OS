@@ -1,5 +1,6 @@
 import { requireUser } from "@/lib/supabase/server";
-import { addDaysISO, todayISO } from "@/lib/dates";
+import { addDaysISO } from "@/lib/dates";
+import { getDateContext } from "@/lib/server/date-context";
 import { expandEvents } from "@/lib/engine/calendar";
 import { CalendarView, type CalItem } from "./calendar-view";
 
@@ -7,7 +8,8 @@ export const metadata = { title: "Calendar" };
 
 export default async function CalendarPage({ searchParams }: { searchParams: Promise<{ date?: string; view?: string }> }) {
   const sp = await searchParams;
-  const anchor = sp.date && /^\d{4}-\d{2}-\d{2}$/.test(sp.date) ? sp.date : todayISO();
+  const { today, tz, dateOf } = await getDateContext();
+  const anchor = sp.date && /^\d{4}-\d{2}-\d{2}$/.test(sp.date) ? sp.date : today;
   const from = addDaysISO(anchor, -45);
   const to = addDaysISO(anchor, 45);
   const { supabase } = await requireUser();
@@ -25,7 +27,7 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
   const areaColor = new Map(areas.data!.map((a) => [a.id, a.color]));
 
   const items: CalItem[] = [
-    ...expandEvents(events.data!, from, to).map((e) => ({
+    ...expandEvents(events.data!, from, to, tz).map((e) => ({
       key: `e-${e.id}-${e.occurrence_date}`, source: "event" as const, id: e.id, title: e.title, date: e.occurrence_date,
       start: e.all_day ? null : e.occurrence_start, end: e.all_day ? null : e.occurrence_end, color: e.color ?? (e.life_area_id ? areaColor.get(e.life_area_id) : undefined) ?? "#6366f1",
       meta: e.kind === "reminder" ? "Reminder" : e.kind === "deadline" ? "Deadline" : e.location ?? undefined, recurring: !!e.recurrence,
@@ -35,15 +37,15 @@ export default async function CalendarPage({ searchParams }: { searchParams: Pro
       start: t.due_time ? new Date(`${t.due_date}T${t.due_time}`).toISOString() : null, end: null,
       color: (t.life_area_id && areaColor.get(t.life_area_id)) || "#64748b", done: t.status === "done", meta: "Task",
     })),
-    ...workouts.data!.map((w) => ({ key: `w-${w.id}`, source: "workout" as const, id: w.id, title: w.name, date: w.started_at.slice(0, 10), start: w.started_at, end: w.ended_at, color: "#ef4444", meta: "Workout" })),
+    ...workouts.data!.map((w) => ({ key: `w-${w.id}`, source: "workout" as const, id: w.id, title: w.name, date: dateOf(w.started_at), start: w.started_at, end: w.ended_at, color: "#ef4444", meta: "Workout" })),
     ...study.data!.map((s) => ({
       key: `s-${s.id}`, source: "study" as const, id: s.id, title: `Study${(s.subjects as { name: string } | null)?.name ? `: ${(s.subjects as { name: string }).name}` : ""}`,
-      date: s.started_at.slice(0, 10), start: s.started_at, end: new Date(new Date(s.started_at).getTime() + s.duration_minutes * 60000).toISOString(), color: "#3b82f6", meta: `${s.duration_minutes} min`,
+      date: dateOf(s.started_at), start: s.started_at, end: new Date(new Date(s.started_at).getTime() + s.duration_minutes * 60000).toISOString(), color: "#3b82f6", meta: `${s.duration_minutes} min`,
     })),
     ...goals.data!.map((g) => ({ key: `g-${g.id}`, source: "goal" as const, id: g.id, title: `Goal: ${g.title}`, date: g.target_date!, start: null, end: null, color: "#f59e0b", meta: "Goal deadline", done: g.status === "completed" })),
     ...assessments.data!.map((a) => ({ key: `a-${a.id}`, source: "assessment" as const, id: a.id, title: a.title, date: a.due_date!, start: null, end: null, color: "#8b5cf6", meta: a.kind === "exam" ? "Exam" : "Assignment" })),
   ];
 
   const view = ["day", "week", "month", "agenda"].includes(sp.view ?? "") ? (sp.view as "day" | "week" | "month" | "agenda") : "month";
-  return <CalendarView anchor={anchor} view={view} items={items} events={events.data!} areas={areas.data!.map((a) => a.id)} />;
+  return <CalendarView today={today} anchor={anchor} view={view} items={items} events={events.data!} areas={areas.data!.map((a) => a.id)} />;
 }

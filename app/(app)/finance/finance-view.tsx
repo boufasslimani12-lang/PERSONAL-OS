@@ -9,7 +9,7 @@ import { Input, Select } from "@/components/ui/form";
 import { EntityForm, useFormState, type Field } from "@/components/forms/entity-form";
 import { BarSeriesChart, BreakdownBars } from "@/components/charts";
 import { CURRENCIES } from "@/lib/constants";
-import { addMonthsISO, endOfMonthISO, formatDate, todayISO } from "@/lib/dates";
+import { addMonthsISO, endOfMonthISO, formatDate } from "@/lib/dates";
 import { summarize } from "@/lib/engine/finance";
 import { formatMoney, formatPct } from "@/lib/format";
 import { useDb } from "@/lib/hooks/use-db";
@@ -18,7 +18,7 @@ import type { Row } from "@/lib/types";
 
 type Tx = Row<"transactions">;
 
-export function FinanceView({ month, txs, categories, savings, currency }: { month: string; txs: Tx[]; categories: Row<"finance_categories">[]; savings: Row<"savings_goals">[]; currency: string }) {
+export function FinanceView({ today, month, txs, categories, savings, currency }: { today: string; month: string; txs: Tx[]; categories: Row<"finance_categories">[]; savings: Row<"savings_goals">[]; currency: string }) {
   const router = useRouter();
   const db = useDb();
   const [tab, setTab] = useState<"overview" | "transactions" | "budgets" | "savings">("overview");
@@ -42,7 +42,7 @@ export function FinanceView({ month, txs, categories, savings, currency }: { mon
   const monthTx = txs.filter((t) => t.occurred_on >= month && t.occurred_on <= end);
   const filtered = monthTx.filter((t) => (kind === "all" || t.kind === kind) && (!cat || t.category_id === cat) && (!q || `${t.description ?? ""} ${t.note ?? ""}`.toLowerCase().includes(q.toLowerCase())));
   const money = (n: number) => formatMoney(n, currency);
-  const isCurrent = month.slice(0, 7) === todayISO().slice(0, 7);
+  const isCurrent = month.slice(0, 7) === today.slice(0, 7);
 
   const txFields: Field[] = [
     { name: "kind", label: "Type", type: "select", required: true, options: [{ value: "expense", label: "Expense" }, { value: "income", label: "Income" }] },
@@ -70,14 +70,14 @@ export function FinanceView({ month, txs, categories, savings, currency }: { mon
   return (
     <div>
       <PageHeader title="Finance" icon={Wallet} description="Income, expenses, budgets and savings"
-        actions={<Button onClick={() => txForm.create({ kind: "expense", currency, occurred_on: isCurrent ? todayISO() : month })}><Plus /> Transaction</Button>} />
+        actions={<Button onClick={() => txForm.create({ kind: "expense", currency, occurred_on: isCurrent ? today : month })}><Plus /> Transaction</Button>} />
 
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
           <Button size="icon" variant="outline" onClick={() => go(addMonthsISO(month, -1))} aria-label="Previous month"><ChevronLeft /></Button>
           <span className="min-w-36 text-center text-sm font-semibold">{formatDate(month, { month: "long", year: "numeric" })}</span>
           <Button size="icon" variant="outline" onClick={() => go(addMonthsISO(month, 1))} aria-label="Next month"><ChevronRight /></Button>
-          {!isCurrent && <Button size="sm" variant="ghost" onClick={() => go(todayISO())}>This month</Button>}
+          {!isCurrent && <Button size="sm" variant="ghost" onClick={() => go(today)}>This month</Button>}
         </div>
         <Tabs value={tab} onChange={setTab} items={[{ value: "overview", label: "Overview" }, { value: "transactions", label: "Transactions", count: monthTx.length }, { value: "budgets", label: "Categories & budgets" }, { value: "savings", label: "Savings goals" }]} />
       </div>

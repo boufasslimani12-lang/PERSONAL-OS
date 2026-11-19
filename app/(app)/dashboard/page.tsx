@@ -10,7 +10,7 @@ import { TaskRow } from "@/components/shared/task-row";
 import { HabitCheck } from "@/components/shared/habit-check";
 import { BarSeriesChart } from "@/components/charts";
 import { CustomizeDashboard, DASHBOARD_WIDGETS } from "./customize";
-import { addDaysISO, addMonthsISO, eachDayISO, endOfMonthISO, formatDate, formatDateTime, isoFromTimestamp, relativeDayLabel, startOfMonthISO } from "@/lib/dates";
+import { addDaysISO, addMonthsISO, eachDayISO, endOfMonthISO, formatDate, formatDateTime, relativeDayLabel, startOfMonthISO } from "@/lib/dates";
 import { isDueToday, aggregateConsistency } from "@/lib/engine/habits";
 import { compareTasks, taskCompletionRate } from "@/lib/engine/tasks";
 import { expandEvents } from "@/lib/engine/calendar";
@@ -50,7 +50,7 @@ export default async function DashboardPage() {
   // Today
   const openTasks = s.tasks.filter((t) => !t.parent_task_id && t.status !== "done" && t.status !== "cancelled");
   const todayTasks = openTasks.filter((t) => t.due_date && t.due_date <= today).sort(compareTasks);
-  const doneToday = s.completions.filter((c) => isoFromTimestamp(c.completed_at) === today).length;
+  const doneToday = s.completions.filter((c) => s.dates.dateOf(c.completed_at) === today).length;
   const todayHabits = s.habits.filter((h) => isDueToday(h, today, s.habitLogs, s.weekStartsOn));
   const logsToday = new Map(s.habitLogs.filter((l) => l.log_date === today).map((l) => [l.habit_id, l]));
   const habitsDone = todayHabits.filter((h) => logsToday.get(h.id)?.completed).length;
@@ -62,7 +62,7 @@ export default async function DashboardPage() {
     ...(assessments.data ?? []).map((a) => ({ id: a.id, title: a.title, date: a.due_date!, kind: a.kind === "exam" ? "Exam" : "Assignment", href: "/education" })),
     ...(projects.data ?? []).map((p) => ({ id: p.id, title: p.title, date: p.due_date!, kind: "Project", href: "/tasks?view=projects" })),
   ].sort((a, b) => a.date.localeCompare(b.date)).slice(0, 8);
-  const upcomingEvents = expandEvents(events.data ?? [], today, addDaysISO(today, 7)).slice(0, 6);
+  const upcomingEvents = expandEvents(events.data ?? [], today, addDaysISO(today, 7), s.tz).slice(0, 6);
 
   // Weekly goals
   const weeklyGoals = s.goals.filter((g) => g.level === "weekly" && !["completed", "cancelled"].includes(g.status)).slice(0, 6);
@@ -78,7 +78,7 @@ export default async function DashboardPage() {
   const week = eachDayISO(addDaysISO(today, -6), today);
   const productivity = week.map((d) => ({
     day: formatDate(d, { weekday: "short" }),
-    tasks: s.completions.filter((c) => isoFromTimestamp(c.completed_at) === d).length,
+    tasks: s.completions.filter((c) => s.dates.dateOf(c.completed_at) === d).length,
     habits: s.habitLogs.filter((l) => l.log_date === d && l.completed).length,
   }));
   const hasProductivity = productivity.some((p) => p.tasks || p.habits);
@@ -87,7 +87,7 @@ export default async function DashboardPage() {
   const months = Array.from({ length: 6 }, (_, i) => addMonthsISO(startOfMonthISO(today), i - 5));
   const monthly = months.map((m) => {
     const end = endOfMonthISO(m);
-    const tr = taskCompletionRate(s.tasks, s.completions, m, end, today);
+    const tr = taskCompletionRate(s.tasks, s.completions, m, end, today, s.tz);
     const hr = aggregateConsistency(s.habits, s.habitLogs, m, end, today, s.weekStartsOn);
     return { month: formatDate(m, { month: "short" }), tasks: tr.rate === null ? null : Math.round(tr.rate), habits: hr.rate === null ? null : Math.round(hr.rate) };
   });
@@ -95,8 +95,8 @@ export default async function DashboardPage() {
 
   // Month snapshot
   const fin = summarize((txs.data ?? []).filter((t) => t.currency === currency), cats.data ?? [], s.month.from, s.month.to);
-  const workoutsThisMonth = (workouts.data ?? []).filter((w) => w.started_at.slice(0, 10) >= s.month.from).length;
-  const studyMinMonth = (study.data ?? []).filter((x) => x.started_at.slice(0, 10) >= s.month.from).reduce((a, x) => a + x.duration_minutes, 0);
+  const workoutsThisMonth = (workouts.data ?? []).filter((w) => s.dates.dateOf(w.started_at) >= s.month.from).length;
+  const studyMinMonth = (study.data ?? []).filter((x) => s.dates.dateOf(x.started_at) >= s.month.from).reduce((a, x) => a + x.duration_minutes, 0);
 
   // Recent activity
   const taskTitle = new Map(s.tasks.map((t) => [t.id, t.title]));
@@ -110,7 +110,7 @@ export default async function DashboardPage() {
     ...(study.data ?? []).slice(0, 5).map((x) => ({ at: x.started_at, icon: GraduationCap, text: `Studied ${x.duration_minutes} min` })),
   ].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 8);
 
-  const hour = new Date().getHours();
+  const hour = s.dates.hour;
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const isNewUser = s.goals.length === 0 && s.tasks.length === 0 && s.habits.length === 0;
 
@@ -249,7 +249,7 @@ export default async function DashboardPage() {
                       <span className="w-1 self-stretch rounded-full" style={{ background: e.color ?? "var(--primary)" }} />
                       <div className="min-w-0">
                         <p className="truncate">{e.title}</p>
-                        <p className="text-xs text-muted-foreground">{e.all_day ? `${relativeDayLabel(e.occurrence_date, today)} · all day` : formatDateTime(e.occurrence_start)}</p>
+                        <p className="text-xs text-muted-foreground">{e.all_day ? `${relativeDayLabel(e.occurrence_date, today)} · all day` : formatDateTime(e.occurrence_start, s.tz)}</p>
                       </div>
                     </li>
                   ))}
@@ -322,7 +322,7 @@ export default async function DashboardPage() {
                   <li key={i} className="flex items-center gap-3 py-2 text-sm">
                     <a.icon className="size-4 shrink-0 text-muted-foreground" />
                     <span className="min-w-0 flex-1 truncate">{a.text}</span>
-                    <span className="shrink-0 text-xs text-muted-foreground">{formatDateTime(a.at)}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">{formatDateTime(a.at, s.tz)}</span>
                   </li>
                 ))}
               </ul>

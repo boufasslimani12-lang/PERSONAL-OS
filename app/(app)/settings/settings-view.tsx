@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Checkbox, Input, Label, Select } from "@/components/ui/form";
 import { CURRENCIES, WEEKDAYS } from "@/lib/constants";
 import { useDb } from "@/lib/hooks/use-db";
+import { todayISO } from "@/lib/dates";
 import type { LifeArea, Profile, TableName } from "@/lib/types";
 
 const EXPORT_TABLES: TableName[] = [
@@ -49,7 +50,7 @@ export function SettingsView({ email, profile, areas }: { email: string; profile
     const blob = new Blob([JSON.stringify(out, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
     a.href = URL.createObjectURL(blob);
-    a.download = `personal-os-export-${new Date().toISOString().slice(0, 10)}.json`;
+    a.download = `personal-os-export-${todayISO()}.json`;
     a.click();
     URL.revokeObjectURL(a.href);
     setExporting(false);

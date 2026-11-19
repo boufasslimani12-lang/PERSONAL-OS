@@ -9,7 +9,7 @@ import { Input, Select } from "@/components/ui/form";
 import { EntityForm, useFormState, type Field } from "@/components/forms/entity-form";
 import { Attachments } from "@/components/shared/attachments";
 import { BarSeriesChart } from "@/components/charts";
-import { addDaysISO, formatDate, formatDateTime, formatMinutes, relativeDayLabel, startOfMonthISO, startOfWeekISO, todayISO } from "@/lib/dates";
+import { addDaysISO, formatDate, formatDateTime, formatMinutes, relativeDayLabel, startOfMonthISO, startOfWeekISO, todayISO, isoFromTimestamp } from "@/lib/dates";
 import { subjectGrade, semesterAveragePct } from "@/lib/engine/education";
 import { formatPct } from "@/lib/format";
 import { useDb } from "@/lib/hooks/use-db";
@@ -58,13 +58,13 @@ export function EducationView({ years, semesters, subjects, courses, chapters, l
 
   const subjIds = new Set(semSubjects.map((s) => s.id));
   const semSessions = sessions.filter((s) => s.subject_id && subjIds.has(s.subject_id));
-  const minutesBy = (from: string) => sessions.filter((s) => s.started_at.slice(0, 10) >= from).reduce((a, s) => a + s.duration_minutes, 0);
+  const minutesBy = (from: string) => sessions.filter((s) => isoFromTimestamp(s.started_at) >= from).reduce((a, s) => a + s.duration_minutes, 0);
   const avg = semesterAveragePct(semSubjects, assessments);
   const semAssess = assessments.filter((a) => subjIds.has(a.subject_id));
   const upcoming = semAssess.filter((a) => a.status === "pending" && a.due_date && a.due_date >= today);
   const perSubject = semSubjects.map((s) => ({ subject: s.name.length > 12 ? s.name.slice(0, 11) + "…" : s.name, hours: Math.round(semSessions.filter((x) => x.subject_id === s.id).reduce((a, x) => a + x.duration_minutes, 0) / 6) / 10 }));
   const weeks = Array.from({ length: 8 }, (_, i) => startOfWeekISO(addDaysISO(today, -7 * (7 - i))));
-  const weekly = weeks.map((w) => ({ week: formatDate(w), hours: Math.round(sessions.filter((s) => s.started_at.slice(0, 10) >= w && s.started_at.slice(0, 10) < addDaysISO(w, 7)).reduce((a, s) => a + s.duration_minutes, 0) / 6) / 10 }));
+  const weekly = weeks.map((w) => ({ week: formatDate(w), hours: Math.round(sessions.filter((s) => isoFromTimestamp(s.started_at) >= w && isoFromTimestamp(s.started_at) < addDaysISO(w, 7)).reduce((a, s) => a + s.duration_minutes, 0) / 6) / 10 }));
 
   const subjOptions = subjects.map((s) => ({ value: s.id, label: s.name }));
   const fields = {

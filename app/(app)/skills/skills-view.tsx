@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/form";
 import { EntityForm, useFormState, type Field } from "@/components/forms/entity-form";
 import { ResourceList } from "@/components/shared/resources";
 import { LineSeriesChart } from "@/components/charts";
-import { formatDate, formatMinutes, startOfMonthISO, todayISO } from "@/lib/dates";
+import { formatDate, formatMinutes, startOfMonthISO, todayISO, isoFromTimestamp } from "@/lib/dates";
 import { useDb } from "@/lib/hooks/use-db";
 import { ToggleCheck } from "@/components/shared/toggle-check";
 import { cn } from "@/lib/utils";
@@ -166,7 +166,7 @@ function SkillDetail({ skill, sessions, assessments, milestones, resources, onCl
             ))}</ul>
           ) : <p className="text-xs text-muted-foreground">No sessions yet.</p>}
         </section>
-        <Badge>Created {formatDate(skill.created_at.slice(0, 10))}</Badge>
+        <Badge>Created {formatDate(isoFromTimestamp(skill.created_at))}</Badge>
       </div>
     </Dialog>
   );

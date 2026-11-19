@@ -10,7 +10,7 @@ import { EntityForm, useFormState, type Field } from "@/components/forms/entity-
 import { HabitCheck } from "@/components/shared/habit-check";
 import { Heatmap } from "@/components/heatmap";
 import { WEEKDAYS } from "@/lib/constants";
-import { addDaysISO, eachDayISO, formatDate, startOfMonthISO, todayISO, endOfMonthISO } from "@/lib/dates";
+import { addDaysISO, eachDayISO, formatDate, startOfMonthISO, todayISO, endOfMonthISO, isoFromTimestamp } from "@/lib/dates";
 import { consistency, currentStreak, longestStreak, isScheduledOn, aggregateConsistency, isDueToday } from "@/lib/engine/habits";
 import { formatPct } from "@/lib/format";
 import { useDb } from "@/lib/hooks/use-db";
@@ -246,7 +246,7 @@ function HabitDetail({ habit, logs, weekStartsOn, onClose, onEdit }: { habit: Ha
           </Button>
           <Button variant="outline" onClick={onEdit}><Pencil /> Edit settings</Button>
         </div>
-        {habit.archived_at && <Badge>Archived {formatDate(habit.archived_at.slice(0, 10))}</Badge>}
+        {habit.archived_at && <Badge>Archived {formatDate(isoFromTimestamp(habit.archived_at))}</Badge>}
       </div>
     </Dialog>
   );
