@@ -18,7 +18,9 @@ lib/
   supabase/               browser/server clients, session proxy helper, generated DB types
   hooks/                  useDb (mutations + refresh + toasts), useTaskActions (completion/recurrence)
   dates.ts, format.ts, markdown.ts, constants.ts, nav.ts
-proxy.ts                  Next 16 proxy (formerly middleware): refreshes the Supabase session, guards routes
+proxy.ts                  Next 16 proxy: per-request CSP nonce, refreshes the Supabase session, guards routes
+lib/security/csp.ts       Content-Security-Policy builder and static security headers
+lib/server/date-context.ts  today/hour/dateOf in the profile time zone (per request)
 supabase/migrations/      SQL schema (source of truth)
 tests/                    engine unit tests
 ```
@@ -35,6 +37,10 @@ tests/                    engine unit tests
 - **Religion** reuses the habit engine (`habits.module = 'religion'`).
 - **Calendar** reads tasks, workouts, study sessions, goal targets and assessments directly — it never copies them into `events`.
 - **Dashboard and Analytics** both use `loadLifeSnapshot()`, so they always show identical numbers.
+
+## Time zones
+The server runs in UTC. Every "today", day boundary and displayed time uses `profiles.timezone`
+(default Africa/Casablanca): `getDateContext()` on the server and `DateProvider` + `lib/dates.ts` on the client.
 
 ## Internationalisation readiness
 UI strings are plain English literals concentrated in view components and `lib/constants.ts`; dates and currency use

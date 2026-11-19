@@ -2,6 +2,7 @@
 
 All formulas live in `lib/engine/*` and are covered by `tests/engine.test.ts`. Principles:
 **no fake numbers**, **missing data is "No data", never 0%**, **in-progress periods never count against you**.
+All day boundaries (today, weeks, months, "completed on") are computed in the profile time zone.
 
 | Metric | Rule |
 |---|---|

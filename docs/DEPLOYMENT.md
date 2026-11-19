@@ -30,6 +30,8 @@ Never add a service-role key anywhere.
 2. Authentication → Sign In / Providers → turn **off** "Allow new users to sign up".
 3. Authentication → URL Configuration → Site URL = your Vercel URL; add `https://<your-domain>/auth/callback` to Redirect URLs.
 
+See [RELEASE.md](RELEASE.md) for the release process and [SECURITY.md](SECURITY.md) for pending owner actions.
+
 ## Before going to Production
 - Merge `claude/inspiring-planck-grxcw1` into `main` and set `main` as the Vercel production branch.
 - Keep a single Vercel project for Personal OS (two exist today, in two accounts).

@@ -29,7 +29,7 @@ religion, finance, personal growth and journaling — with an honest analytics e
 
 ## Tech stack
 
-Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS v4 · shadcn-style UI primitives · Lucide · Recharts ·
+Node 22 · Next.js 16 (App Router) · React 19 · TypeScript · Tailwind CSS v4 · shadcn-style UI primitives · Lucide · Recharts ·
 Zod · Supabase (Postgres, Auth, Storage, RLS) · Vercel.
 
 ## Getting started
@@ -54,7 +54,10 @@ exercise library. No fake progress data is ever inserted.
 | `npm run dev` | Development server |
 | `npm run build` / `npm start` | Production build / serve |
 | `npm run typecheck` | TypeScript check |
-| `npm test` | Unit tests for the calculation engine (Node's built-in test runner) |
+| `npm run lint` | ESLint |
+| `npm test` | Unit tests (engine, dates/time zones, Markdown, CSP) |
+| `npm run test:e2e` | Playwright browser tests against a local Supabase — see docs/TESTING.md |
+| `npm run check` | Everything except browser tests |
 
 ## Environment variables
 
@@ -78,4 +81,7 @@ Site URL and `https://<domain>/auth/callback` as a redirect URL.
 - [docs/DATABASE.md](docs/DATABASE.md) — tables, relationships, RLS, storage
 - [docs/ANALYTICS.md](docs/ANALYTICS.md) — exactly how every percentage is calculated
 - [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) — services, URLs, configuration and go-live checklist
+- [docs/RELEASE.md](docs/RELEASE.md) — branches, preview → production flow, rollback
+- [docs/TESTING.md](docs/TESTING.md) — unit, lint and browser tests; local Supabase
+- [docs/SECURITY.md](docs/SECURITY.md) — RLS, CSP and headers, auth, pending owner actions
 - [CLAUDE.md](CLAUDE.md) — guide for AI-assisted development

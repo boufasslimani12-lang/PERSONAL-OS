@@ -3,8 +3,9 @@
 Private single-user life-management app. Next.js 16 App Router + Supabase. Read `docs/ARCHITECTURE.md` first.
 
 ## Commands
-- `npm run dev` · `npm run build` · `npm run typecheck` · `npm test` (engine unit tests, `node --test`)
-- Run `npm run typecheck && npm test && npm run build` before committing.
+- `npm run dev` · `npm run build` · `npm run typecheck` · `npm run lint` · `npm test` · `npm run test:e2e`
+- Run `npm run check` before committing; run `npm run test:e2e` (local Supabase, docs/TESTING.md) for UI changes.
+- Browser tests must never point at the production Supabase project (`tests/e2e/env.ts` enforces this).
 
 ## Conventions
 - **Pages** (`app/(app)/<module>/page.tsx`) are Server Components: they call `requireUser()` and fetch with the
@@ -17,6 +18,10 @@ Private single-user life-management app. Next.js 16 App Router + Supabase. Read 
 - **Calculations** live in `lib/engine/*` as pure functions with relative `.ts` imports so `node --test` can run them.
   Any new metric must be added there, unit-tested, and documented in `docs/ANALYTICS.md`.
 - Dates: calendar dates are ISO strings (`YYYY-MM-DD`) handled by `lib/dates.ts` — don't use `new Date("YYYY-MM-DD")` (UTC drift).
+  "Today" and timestamp→day conversions use the **profile time zone**: `getDateContext()` on the server,
+  `todayISO()`/`isoFromTimestamp()` on the client (set by `DateProvider`). Never `ts.slice(0, 10)` or `new Date().getHours()`.
+- Security: no `eval`/`new Function`, no inline `<script>` without the CSP nonce, no new external hosts without
+  updating `lib/security/csp.ts`. Deletions use `useConfirm()`, never `window.confirm`.
 - Never show fake numbers. Missing data → "No data"/"—", never 0%.
 - UI: Tailwind tokens from `app/globals.css` (`bg-card`, `text-muted-foreground`, …); both light and dark must work;
   layouts must work at 390px width with no page-level horizontal scroll.
