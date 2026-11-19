@@ -1,5 +1,5 @@
 "use client";
-import { useMemo, useState, useEffect } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Target, Plus, Search, Archive, ArchiveRestore, Pencil, CheckCircle2, ChevronRight, Flag, Trash2, CalendarClock } from "lucide-react";
 import { PageHeader, Badge, EmptyState, Progress, Tabs, ProgressRing } from "@/components/ui/misc";
@@ -34,7 +34,13 @@ export function GoalsView({ goals, milestones, tasks, areas, progress }: {
   const today = todayISO();
   const areaById = useMemo(() => new Map(areas.map((a) => [a.id, a])), [areas]);
 
-  useEffect(() => { const o = params.get("open"); if (o) setDetailId(o); }, [params]);
+  // Follow ?open=<id> links (e.g. from the dashboard) without syncing state in an effect.
+  const openParam = params.get("open");
+  const [seenOpenParam, setSeenOpenParam] = useState(openParam);
+  if (openParam !== seenOpenParam) {
+    setSeenOpenParam(openParam);
+    if (openParam) setDetailId(openParam);
+  }
 
   const matches = (g: Goal) =>
     (showArchived ? !!g.archived_at : !g.archived_at) &&

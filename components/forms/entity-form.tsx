@@ -10,6 +10,9 @@ import type { TableName } from "@/lib/types";
 import { cn } from "@/lib/utils";
 import { fromZonedWallTime, toZonedWallTime } from "@/lib/dates";
 
+// Our Content-Security-Policy forbids eval/new Function; tell Zod not to attempt JIT compilation.
+z.config({ jitless: true });
+
 export type FieldType = "text" | "textarea" | "markdown" | "number" | "date" | "time" | "datetime" | "select" | "checkbox" | "color" | "tags" | "url";
 
 export interface Field {
@@ -107,16 +110,20 @@ export function EntityForm({ table, title, description, fields, open, onClose, r
   const [errors, setErrors] = React.useState<Record<string, string>>({});
   const [confirmDelete, setConfirmDelete] = React.useState(false);
 
-  React.useEffect(() => {
-    if (!open) return;
-    const src = ((record as Values | null | undefined) ?? defaults ?? {}) as Values;
-    const v: Values = {};
-    for (const f of fields) v[f.name] = toInput(f, src[f.name]);
-    setValues(v);
-    setErrors({});
-    setConfirmDelete(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, record?.id]);
+  // Reset the form whenever it opens (or switches record) — done during render, not in an effect.
+  const resetKey = open ? `open:${record?.id ?? "new"}` : "closed";
+  const [lastResetKey, setLastResetKey] = React.useState("closed");
+  if (resetKey !== lastResetKey) {
+    setLastResetKey(resetKey);
+    if (open) {
+      const src = ((record as Values | null | undefined) ?? defaults ?? {}) as Values;
+      const v: Values = {};
+      for (const f of fields) v[f.name] = toInput(f, src[f.name]);
+      setValues(v);
+      setErrors({});
+      setConfirmDelete(false);
+    }
+  }
 
   const visible = fields.filter((f) => !f.showIf || f.showIf(values));
 

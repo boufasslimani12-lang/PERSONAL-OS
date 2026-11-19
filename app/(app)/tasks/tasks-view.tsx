@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { ListChecks, Plus, LayoutList, Columns3, FolderKanban, Pencil, History, Search } from "lucide-react";
 import { PageHeader, Badge, EmptyState, Tabs, Progress } from "@/components/ui/misc";
 import { Button } from "@/components/ui/button";
-import { Input, Select } from "@/components/ui/form";
+import { Input } from "@/components/ui/form";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { EntityForm, useFormState, type Field } from "@/components/forms/entity-form";

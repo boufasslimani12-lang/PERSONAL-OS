@@ -1,18 +1,21 @@
 "use client";
 import { Moon, Sun } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
+
+const listeners = new Set<() => void>();
+const subscribe = (cb: () => void) => { listeners.add(cb); return () => listeners.delete(cb); };
+const isDark = () => document.documentElement.classList.contains("dark");
 
 export function ThemeToggle() {
-  const [dark, setDark] = useState(false);
-  useEffect(() => setDark(document.documentElement.classList.contains("dark")), []);
+  const dark = useSyncExternalStore(subscribe, isDark, () => false);
   function toggle() {
-    const next = !dark;
-    setDark(next);
+    const next = !isDark();
     document.documentElement.classList.toggle("dark", next);
     try { localStorage.setItem("pos-theme", next ? "dark" : "light"); } catch {}
+    listeners.forEach((l) => l());
   }
   return (
-    <button onClick={toggle} className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground" aria-label="Toggle theme">
+    <button onClick={toggle} className="grid size-8 place-items-center rounded-lg text-muted-foreground hover:bg-muted hover:text-foreground" aria-label={dark ? "Switch to light theme" : "Switch to dark theme"}>
       {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
     </button>
   );

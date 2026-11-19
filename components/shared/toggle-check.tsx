@@ -1,11 +1,15 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Checkbox } from "@/components/ui/form";
 
 /** Checkbox that flips immediately (optimistic) and reverts if the async save fails. */
 export function ToggleCheck({ checked, onToggle, label }: { checked: boolean; onToggle: (next: boolean) => Promise<boolean | void>; label?: string }) {
   const [value, setValue] = useState(checked);
-  useEffect(() => setValue(checked), [checked]);
+  const [lastChecked, setLastChecked] = useState(checked);
+  if (checked !== lastChecked) {
+    setLastChecked(checked);
+    setValue(checked);
+  }
   return (
     <Checkbox
       aria-label={label}

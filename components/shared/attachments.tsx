@@ -1,8 +1,9 @@
 "use client";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Paperclip, Download, Trash2, Upload } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useDb } from "@/lib/hooks/use-db";
+import { useConfirm } from "@/components/ui/confirm";
 import type { Row } from "@/lib/types";
 
 type EntityType = "subject" | "lesson" | "assessment" | "note" | "project" | "goal";
@@ -11,16 +12,22 @@ const MAX = 25 * 1024 * 1024;
 /** Files stored in the private "attachments" bucket under <user_id>/<entity_type>/<entity_id>/... */
 export function Attachments({ entityType, entityId }: { entityType: EntityType; entityId: string }) {
   const db = useDb();
+  const confirm = useConfirm();
   const [items, setItems] = useState<Row<"attachments">[]>([]);
   const [busy, setBusy] = useState(false);
   const input = useRef<HTMLInputElement>(null);
 
-  async function load() {
-    const { data } = await db.supabase.from("attachments").select("*").eq("entity_type", entityType).eq("entity_id", entityId).order("created_at");
-    setItems(data ?? []);
-  }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { load(); }, [entityType, entityId]);
+  const supabase = db.supabase;
+  const fetchItems = useCallback(
+    () => supabase.from("attachments").select("*").eq("entity_type", entityType).eq("entity_id", entityId).order("created_at"),
+    [supabase, entityType, entityId],
+  );
+  const load = useCallback(async () => setItems((await fetchItems()).data ?? []), [fetchItems]);
+  useEffect(() => {
+    let active = true;
+    fetchItems().then(({ data }) => { if (active) setItems(data ?? []); });
+    return () => { active = false; };
+  }, [fetchItems]);
 
   async function upload(files: FileList | null) {
     if (!files?.length) return;
@@ -46,7 +53,7 @@ export function Attachments({ entityType, entityId }: { entityType: EntityType; 
     window.open(data.signedUrl, "_blank", "noopener");
   }
   async function remove(a: Row<"attachments">) {
-    if (!confirm(`Delete ${a.file_name}?`)) return;
+    if (!(await confirm({ title: `Delete ${a.file_name}?`, description: "The file is removed from storage." }))) return;
     await db.supabase.storage.from("attachments").remove([a.storage_path]);
     await db.supabase.from("attachments").delete().eq("id", a.id);
     load();

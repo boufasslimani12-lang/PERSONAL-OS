@@ -7,7 +7,7 @@ import { addDaysISO, addMonthsISO, endOfMonthISO, formatDate, startOfMonthISO, s
 import { aggregateConsistency } from "@/lib/engine/habits";
 import { taskCompletionRate } from "@/lib/engine/tasks";
 import { summarize } from "@/lib/engine/finance";
-import { formatMoney, formatPct } from "@/lib/format";
+import { formatPct } from "@/lib/format";
 
 export const metadata = { title: "Analytics" };
 

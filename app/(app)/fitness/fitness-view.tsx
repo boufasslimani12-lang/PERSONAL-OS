@@ -8,6 +8,7 @@ import { Input, Select } from "@/components/ui/form";
 import { EntityForm, useFormState, type Field } from "@/components/forms/entity-form";
 import { BarSeriesChart, LineSeriesChart } from "@/components/charts";
 import { useDb } from "@/lib/hooks/use-db";
+import { useConfirm } from "@/components/ui/confirm";
 import { addDaysISO, formatDate, formatDateTime, formatMinutes, startOfWeekISO, todayISO, isoFromTimestamp } from "@/lib/dates";
 import { personalRecords, totalVolume, bmi, estimated1RM } from "@/lib/engine/fitness";
 import { formatNumber } from "@/lib/format";
@@ -23,6 +24,7 @@ export function FitnessView({ exercises, templates, templateExercises, workouts,
 }) {
   const [tab, setTab] = useState<Tab>("overview");
   const db = useDb();
+  const confirm = useConfirm();
   const today = todayISO();
   const exById = useMemo(() => new Map(exercises.map((e) => [e.id, e])), [exercises]);
   const active = workouts.find((w) => !w.ended_at);
@@ -160,7 +162,7 @@ export function FitnessView({ exercises, templates, templateExercises, workouts,
                         </div>
                         <div className="flex gap-1">
                           <Button size="sm" variant="ghost" onClick={() => db.update("workouts", w.id, { ended_at: null }, "Workout reopened for editing")}><Pencil /> Edit</Button>
-                          <Button size="icon" variant="ghost" onClick={() => confirm("Delete this workout?") && db.remove("workouts", w.id)} aria-label="Delete workout"><Trash2 /></Button>
+                          <Button size="icon" variant="ghost" onClick={async () => (await confirm({ title: `Delete “${w.name}”?`, description: "The workout and all its sets are deleted. Personal records are recalculated." })) && db.remove("workouts", w.id)} aria-label="Delete workout"><Trash2 /></Button>
                         </div>
                       </li>
                     );

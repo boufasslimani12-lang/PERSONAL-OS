@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Code2, Users, Plus, Pencil, Clock, Trash2, Gauge, Archive } from "lucide-react";
 import { PageHeader, EmptyState, Badge, Progress, StatCard } from "@/components/ui/misc";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/form";
 import { EntityForm, useFormState, type Field } from "@/components/forms/entity-form";

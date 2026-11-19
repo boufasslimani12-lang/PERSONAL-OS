@@ -13,6 +13,7 @@ import { addDaysISO, formatDate, formatDateTime, formatMinutes, relativeDayLabel
 import { subjectGrade, semesterAveragePct } from "@/lib/engine/education";
 import { formatPct } from "@/lib/format";
 import { useDb } from "@/lib/hooks/use-db";
+import { useConfirm } from "@/components/ui/confirm";
 import { ToggleCheck } from "@/components/shared/toggle-check";
 import { cn } from "@/lib/utils";
 import type { Row } from "@/lib/types";
@@ -243,6 +244,7 @@ function SubjectDetail({ subject, courses, chapters, lessons, assessments, onClo
 
 function CourseNode({ course, chapters, lessons, onLog }: { course: Row<"courses">; chapters: Row<"chapters">[]; lessons: Row<"lessons">[]; onLog: (lessonId?: string) => void }) {
   const db = useDb();
+  const confirm = useConfirm();
   const [open, setOpen] = useState(true);
   const [ch, setCh] = useState("");
   const all = lessons.filter((l) => chapters.some((c) => c.id === l.chapter_id));
@@ -252,7 +254,7 @@ function CourseNode({ course, chapters, lessons, onLog }: { course: Row<"courses
         <button onClick={() => setOpen(!open)} aria-label="Toggle"><ChevronRight className={cn("size-4 transition-transform", open && "rotate-90")} /></button>
         <span className="flex-1 text-sm font-medium">{course.title}</span>
         <span className="text-xs text-muted-foreground">{all.filter((l) => l.completed_at).length}/{all.length}</span>
-        <button onClick={() => confirm(`Delete course “${course.title}” and its chapters?`) && db.remove("courses", course.id)} aria-label="Delete course"><Trash2 className="size-3.5 text-muted-foreground" /></button>
+        <button onClick={async () => (await confirm({ title: `Delete course “${course.title}”?`, description: "Its chapters and lessons are deleted too. Study sessions stay, without the lesson link." })) && db.remove("courses", course.id)} aria-label="Delete course"><Trash2 className="size-3.5 text-muted-foreground" /></button>
       </div>
       {open && (
         <div className="space-y-2 border-t border-border px-3 py-2">
@@ -268,12 +270,13 @@ function CourseNode({ course, chapters, lessons, onLog }: { course: Row<"courses
 
 function ChapterNode({ chapter, lessons, onLog }: { chapter: Row<"chapters">; lessons: Row<"lessons">[]; onLog: (lessonId?: string) => void }) {
   const db = useDb();
+  const confirm = useConfirm();
   const [title, setTitle] = useState("");
   return (
     <div>
       <p className="flex items-center justify-between text-xs font-semibold text-muted-foreground">
         {chapter.title}
-        <button onClick={() => confirm(`Delete chapter “${chapter.title}”?`) && db.remove("chapters", chapter.id)} aria-label="Delete chapter"><Trash2 className="size-3" /></button>
+        <button onClick={async () => (await confirm({ title: `Delete chapter “${chapter.title}”?`, description: "Its lessons are deleted too." })) && db.remove("chapters", chapter.id)} aria-label="Delete chapter"><Trash2 className="size-3" /></button>
       </p>
       <ul className="mt-1 space-y-1 pl-2">
         {lessons.map((l) => (
@@ -281,7 +284,7 @@ function ChapterNode({ chapter, lessons, onLog }: { chapter: Row<"chapters">; le
             <ToggleCheck label="Toggle complete" checked={!!l.completed_at} onToggle={(next) => db.update("lessons", l.id, { completed_at: next ? new Date().toISOString() : null }, undefined)} />
             <span className={cn("flex-1", l.completed_at && "text-muted-foreground line-through")}>{l.title}</span>
             <button className="opacity-0 group-hover:opacity-100" onClick={() => onLog(l.id)} title="Log study for this lesson"><Clock className="size-3.5 text-muted-foreground" /></button>
-            <button className="opacity-0 group-hover:opacity-100" onClick={() => db.remove("lessons", l.id)} aria-label="Delete lesson"><Trash2 className="size-3.5 text-muted-foreground" /></button>
+            <button className="opacity-0 group-hover:opacity-100" onClick={async () => (await confirm({ title: `Delete lesson “${l.title}”?` })) && db.remove("lessons", l.id)} aria-label="Delete lesson"><Trash2 className="size-3.5 text-muted-foreground" /></button>
           </li>
         ))}
       </ul>

@@ -1,10 +1,11 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Check, Plus, Timer, Trash2, Flag, X } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input, Select } from "@/components/ui/form";
 import { useDb } from "@/lib/hooks/use-db";
+import { useConfirm } from "@/components/ui/confirm";
 import { totalVolume } from "@/lib/engine/fitness";
 import { formatNumber } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -19,12 +20,38 @@ function useNow(interval = 1000) {
   return now;
 }
 
+/** Rest countdown: started from an event handler, finished by a timeout (no state updates inside effects). */
+function useRestTimer(onDone: () => void) {
+  const [restUntil, setRestUntil] = useState<number | null>(null);
+  const untilRef = useRef<number | null>(null);
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const done = useRef(onDone);
+  useEffect(() => { done.current = onDone; }, [onDone]);
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  const schedule = useCallback((until: number) => {
+    if (timer.current) clearTimeout(timer.current);
+    untilRef.current = until;
+    setRestUntil(until);
+    timer.current = setTimeout(() => { untilRef.current = null; setRestUntil(null); done.current(); }, Math.max(0, until - Date.now()));
+  }, []);
+  const start = useCallback((seconds: number) => schedule(Date.now() + seconds * 1000), [schedule]);
+  const extend = useCallback((seconds: number) => schedule((untilRef.current ?? Date.now()) + seconds * 1000), [schedule]);
+  const skip = useCallback(() => { if (timer.current) clearTimeout(timer.current); untilRef.current = null; setRestUntil(null); }, []);
+  return { restUntil, start, extend, skip };
+}
+
 const mmss = (sec: number) => `${Math.floor(sec / 60)}:${String(Math.max(0, Math.floor(sec % 60))).padStart(2, "0")}`;
 
 export function WorkoutLogger({ workout, sets, exercises }: { workout: Row<"workouts">; sets: Row<"workout_sets">[]; exercises: Row<"exercises">[] }) {
   const db = useDb();
+  const confirm = useConfirm();
   const now = useNow();
-  const [restUntil, setRestUntil] = useState<number | null>(null);
+  const toast = db.toast;
+  const rest$ = useRestTimer(useCallback(() => {
+    try { navigator.vibrate?.(300); } catch {}
+    toast("Rest finished — next set!");
+  }, [toast]));
+  const restUntil = rest$.restUntil;
   const [addEx, setAddEx] = useState("");
   const [name, setName] = useState(workout.name);
   const byId = new Map(exercises.map((e) => [e.id, e]));
@@ -33,20 +60,12 @@ export function WorkoutLogger({ workout, sets, exercises }: { workout: Row<"work
   const elapsed = (now - new Date(workout.started_at).getTime()) / 1000;
   const rest = restUntil ? Math.max(0, (restUntil - now) / 1000) : 0;
 
-  useEffect(() => {
-    if (restUntil && now >= restUntil) {
-      setRestUntil(null);
-      try { navigator.vibrate?.(300); } catch {}
-      db.toast("Rest finished — next set!");
-    }
-  }, [now, restUntil, db]);
-
   async function patch(s: Row<"workout_sets">, values: Partial<Row<"workout_sets">>) {
     await db.update("workout_sets", s.id, values, undefined);
   }
   async function toggle(s: Row<"workout_sets">) {
     await patch(s, { completed: !s.completed });
-    if (!s.completed) setRestUntil(Date.now() + (s.rest_seconds ?? 90) * 1000);
+    if (!s.completed) rest$.start(s.rest_seconds ?? 90);
   }
   async function addSet(exerciseId: string) {
     const prev = sets.filter((s) => s.exercise_id === exerciseId).at(-1);
@@ -77,7 +96,7 @@ export function WorkoutLogger({ workout, sets, exercises }: { workout: Row<"work
           </CardDescription>
         </div>
         <div className="flex gap-2">
-          <Button variant="ghost" size="sm" onClick={() => confirm("Discard this workout and all its sets?") && db.remove("workouts", workout.id, "Workout discarded")}><X /> Discard</Button>
+          <Button variant="ghost" size="sm" onClick={async () => (await confirm({ title: "Discard this workout?", description: "All sets logged in this session are deleted.", confirmLabel: "Discard" })) && db.remove("workouts", workout.id, "Workout discarded")}><X /> Discard</Button>
           <Button size="sm" onClick={finish} loading={db.pending}><Flag /> Finish</Button>
         </div>
       </CardHeader>
@@ -86,8 +105,8 @@ export function WorkoutLogger({ workout, sets, exercises }: { workout: Row<"work
           <div className="flex items-center justify-between rounded-lg bg-accent px-3 py-2 text-sm text-accent-foreground">
             <span className="flex items-center gap-2"><Timer className="size-4" /> Rest <span className="font-semibold tabular-nums">{mmss(rest)}</span></span>
             <div className="flex gap-1">
-              <Button size="sm" variant="ghost" onClick={() => setRestUntil((r) => (r ?? Date.now()) + 30000)}>+30s</Button>
-              <Button size="sm" variant="ghost" onClick={() => setRestUntil(null)}>Skip</Button>
+              <Button size="sm" variant="ghost" onClick={() => rest$.extend(30)}>+30s</Button>
+              <Button size="sm" variant="ghost" onClick={rest$.skip}>Skip</Button>
             </div>
           </div>
         )}
