@@ -152,7 +152,7 @@ function SkillDetail({ skill, sessions, assessments, milestones, resources, onCl
             ))}
           </ul>
           <form className="mt-2 flex gap-2" onSubmit={async (e) => { e.preventDefault(); if (ms.trim() && await db.insert("milestones", { skill_id: skill.id, title: ms.trim(), sort_order: milestones.length }, "Milestone added")) setMs(""); }}>
-            <Input placeholder={skill.kind === "hard" ? "e.g. Build a REST API project" : "e.g. Give a 5-minute talk"} value={ms} onChange={(e) => setMs(e.target.value)} /><Button type="submit" variant="outline" className="h-9"><Plus /></Button>
+            <Input placeholder={skill.kind === "hard" ? "e.g. Build a REST API project" : "e.g. Give a 5-minute talk"} value={ms} onChange={(e) => setMs(e.target.value)} /><Button type="submit" variant="outline" className="h-9" aria-label="Add milestone"><Plus /></Button>
           </form>
         </section>
 

@@ -271,7 +271,7 @@ function GoalDetail({ goal, goals, milestones, tasks, progress, area, onClose, o
           <form onSubmit={addTask} className="mt-2 flex gap-2">
             <Input placeholder="Add a task for this goal…" value={taskTitle} onChange={(e) => setTaskTitle(e.target.value)} />
             <Input type="date" value={taskDue} onChange={(e) => setTaskDue(e.target.value)} className="w-40" />
-            <Button type="submit" variant="outline" size="sm" className="h-9"><Plus /></Button>
+            <Button type="submit" variant="outline" size="sm" className="h-9" aria-label="Add task"><Plus /></Button>
           </form>
         </section>
 

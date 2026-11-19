@@ -64,6 +64,20 @@ test.describe("every page renders", () => {
       await settle(page);
       await expect(page.getByText("Something went wrong")).toHaveCount(0);
       await expect(page.locator("main h1").first()).toBeVisible();
+      // Accessibility: every interactive element has an accessible name.
+      const unnamed = await page.evaluate(() => {
+        const name = (el: Element) => {
+          const e = el as HTMLElement;
+          const labelledby = e.getAttribute("aria-labelledby");
+          const byId = labelledby ? labelledby.split(" ").map((id) => document.getElementById(id)?.textContent ?? "").join(" ") : "";
+          const labels = (e as HTMLInputElement).labels ? Array.from((e as HTMLInputElement).labels!).map((l) => l.textContent ?? "").join(" ") : "";
+          return (e.getAttribute("aria-label") ?? "") + byId + labels + (e.textContent ?? "") + (e.getAttribute("title") ?? "") + (e.getAttribute("placeholder") ?? "");
+        };
+        return Array.from(document.querySelectorAll("button, a[href], input:not([type=hidden]), select, textarea"))
+          .filter((el) => (el as HTMLElement).offsetParent !== null && !name(el).trim())
+          .map((el) => el.outerHTML.slice(0, 120));
+      });
+      expect(unnamed, `elements without an accessible name:\n${unnamed.join("\n")}`).toEqual([]);
       void problems;
     });
   }

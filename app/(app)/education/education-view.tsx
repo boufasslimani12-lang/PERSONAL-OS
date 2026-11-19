@@ -233,7 +233,7 @@ function SubjectDetail({ subject, courses, chapters, lessons, assessments, onClo
           <h3 className="text-sm font-semibold">Courses → chapters → lessons</h3>
           {courses.map((c) => <CourseNode key={c.id} course={c} chapters={chapters.filter((ch) => ch.course_id === c.id)} lessons={lessons} onLog={onLog} />)}
           <form className="flex gap-2" onSubmit={async (e) => { e.preventDefault(); if (course.trim() && await db.insert("courses", { subject_id: subject.id, title: course.trim(), sort_order: courses.length }, "Course added")) setCourse(""); }}>
-            <Input placeholder="Add a course…" value={course} onChange={(e) => setCourse(e.target.value)} /><Button type="submit" variant="outline" className="h-9"><Plus /></Button>
+            <Input placeholder="Add a course…" value={course} onChange={(e) => setCourse(e.target.value)} /><Button type="submit" variant="outline" className="h-9" aria-label="Add course"><Plus /></Button>
           </form>
         </section>
         <Attachments entityType="subject" entityId={subject.id} />
@@ -260,7 +260,7 @@ function CourseNode({ course, chapters, lessons, onLog }: { course: Row<"courses
         <div className="space-y-2 border-t border-border px-3 py-2">
           {chapters.map((c) => <ChapterNode key={c.id} chapter={c} lessons={lessons.filter((l) => l.chapter_id === c.id)} onLog={onLog} />)}
           <form className="flex gap-2" onSubmit={async (e) => { e.preventDefault(); if (ch.trim() && await db.insert("chapters", { course_id: course.id, title: ch.trim(), sort_order: chapters.length }, "Chapter added")) setCh(""); }}>
-            <Input className="h-8" placeholder="Add a chapter…" value={ch} onChange={(e) => setCh(e.target.value)} /><Button type="submit" size="sm" variant="ghost"><Plus /></Button>
+            <Input className="h-8" placeholder="Add a chapter…" value={ch} onChange={(e) => setCh(e.target.value)} /><Button type="submit" size="sm" variant="ghost" aria-label="Add chapter"><Plus /></Button>
           </form>
         </div>
       )}

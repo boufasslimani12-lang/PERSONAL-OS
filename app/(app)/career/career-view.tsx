@@ -124,14 +124,14 @@ function ProjectDetail({ project, tasks, milestones, resources, goal, onClose, o
             </li>))}
           </ul>
           <form className="mt-2 flex gap-2" onSubmit={async (e) => { e.preventDefault(); if (ms.trim() && await db.insert("milestones", { project_id: project.id, title: ms.trim(), sort_order: milestones.length }, "Milestone added")) setMs(""); }}>
-            <Input placeholder="Add milestone…" value={ms} onChange={(e) => setMs(e.target.value)} /><Button type="submit" variant="outline" className="h-9"><Plus /></Button>
+            <Input placeholder="Add milestone…" value={ms} onChange={(e) => setMs(e.target.value)} /><Button type="submit" variant="outline" className="h-9" aria-label="Add milestone"><Plus /></Button>
           </form>
         </section>
         <section>
           <h3 className="mb-1 text-sm font-semibold">Tasks</h3>
           <div className="-mx-2">{tasks.map((t) => <TaskRow key={t.id} task={t} />)}</div>
           <form className="mt-2 flex gap-2" onSubmit={async (e) => { e.preventDefault(); if (task.trim() && await db.insert("tasks", { title: task.trim(), project_id: project.id, goal_id: project.goal_id, life_area_id: project.life_area_id, due_date: due || null }, "Task added")) { setTask(""); setDue(""); } }}>
-            <Input placeholder="Add task…" value={task} onChange={(e) => setTask(e.target.value)} /><Input type="date" className="w-40" value={due} onChange={(e) => setDue(e.target.value)} /><Button type="submit" variant="outline" className="h-9"><Plus /></Button>
+            <Input placeholder="Add task…" value={task} onChange={(e) => setTask(e.target.value)} /><Input type="date" className="w-40" value={due} onChange={(e) => setDue(e.target.value)} /><Button type="submit" variant="outline" className="h-9" aria-label="Add task"><Plus /></Button>
           </form>
         </section>
         <ResourceList resources={resources} link={{ project_id: project.id }} />

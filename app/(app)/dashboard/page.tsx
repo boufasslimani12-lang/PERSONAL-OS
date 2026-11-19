@@ -34,7 +34,7 @@ export default async function DashboardPage() {
   const sixMonthsAgo = addMonthsISO(startOfMonthISO(today), -5);
 
   const [events, workouts, txs, cats, study, notes, assessments, projects] = await Promise.all([
-    supabase.from("events").select("*").lte("start_at", eventRangeUpperBound(in14)).or(eventRangeFilter(today, in14)),
+    supabase.from("events").select("*").lte("start_at", eventRangeUpperBound(in14)).or(eventRangeFilter(today)),
     supabase.from("workouts").select("id,name,started_at,ended_at").gte("started_at", sixMonthsAgo).order("started_at", { ascending: false }),
     supabase.from("transactions").select("*").gte("occurred_on", startOfMonthISO(today)).order("occurred_on", { ascending: false }),
     supabase.from("finance_categories").select("*"),

@@ -14,7 +14,7 @@ export interface EventLike {
  * (±1 day of slack for time-zone offsets) and recurring events that started before `to` and haven't ended
  * before `from`. Use with `.lte("start_at", …)` from eventRangeUpperBound().
  */
-export function eventRangeFilter(from: string, to: string): string {
+export function eventRangeFilter(from: string): string {
   const lower = addDaysISO(from, -1);
   return `start_at.gte.${lower},and(recurrence.not.is.null,or(recurrence_until.is.null,recurrence_until.gte.${from}))`;
 }

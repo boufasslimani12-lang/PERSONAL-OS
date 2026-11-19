@@ -123,7 +123,7 @@ export function TasksView({ tasks, projects, goals, areas, completions }: {
       {view !== "completed" && view !== "projects" && view !== "areas" && (
         <form onSubmit={quickAdd} className="mb-4 flex gap-2">
           <Input placeholder={`Quick add a task${view === "today" ? " for today" : ""}… (press Enter)`} value={quick} onChange={(e) => setQuick(e.target.value)} />
-          <Button type="submit" variant="outline" className="h-9"><Plus /></Button>
+          <Button type="submit" variant="outline" className="h-9" aria-label="Add task"><Plus /></Button>
         </form>
       )}
 
@@ -283,7 +283,7 @@ function TaskDetail({ task, subtasks, history, project, goal, area, onClose, onE
         <section>
           <h3 className="mb-1 text-sm font-semibold">Subtasks</h3>
           <div className="-mx-2">{subtasks.map((s) => <TaskRow key={s.id} task={s} showDate={false} />)}</div>
-          <form onSubmit={addSub} className="mt-2 flex gap-2"><Input placeholder="Add subtask…" value={title} onChange={(e) => setTitle(e.target.value)} /><Button type="submit" variant="outline" className="h-9"><Plus /></Button></form>
+          <form onSubmit={addSub} className="mt-2 flex gap-2"><Input placeholder="Add subtask…" value={title} onChange={(e) => setTitle(e.target.value)} /><Button type="submit" variant="outline" className="h-9" aria-label="Add subtask"><Plus /></Button></form>
         </section>
         {task.notes && <section><h3 className="mb-1 text-sm font-semibold">Notes</h3><p className="whitespace-pre-wrap text-sm text-muted-foreground">{task.notes}</p></section>}
         <section>
