@@ -29,6 +29,9 @@ async function logSet(page: Page, exercise: string, set: number, kg: string, rep
 }
 
 test.describe.serial("fitness", () => {
+  // Own fresh account (created in global-setup): these tests assert exact counts and must not see other suites' data.
+  test.use({ storageState: "tests/e2e/.auth/fitness.json" });
+
   test("build a program with training days and exercises", async ({ page, problems }) => {
     await page.goto("/fitness");
     await expect(page.getByText("Create your workout program")).toBeVisible();
@@ -175,7 +178,7 @@ test.describe.serial("fitness", () => {
   });
 
   test("the workout screen is comfortable on a phone", async ({ browser }) => {
-    const ctx = await browser.newContext({ storageState: "tests/e2e/.auth/user.json", viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+    const ctx = await browser.newContext({ storageState: "tests/e2e/.auth/fitness.json", viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
     const page = await ctx.newPage();
     await page.goto("/fitness");
     await page.getByRole("button", { name: /^Start / }).first().click();

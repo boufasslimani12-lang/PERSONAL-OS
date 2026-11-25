@@ -1,6 +1,7 @@
 import { chromium, type FullConfig } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { SUPABASE_URL, SECRET_KEY, TEST_USER_FILE, assertLocalSupabase } from "./env";
+import { createIsolatedUser } from "./fixtures";
 
 // Creates a fresh, confirmed throwaway user in the LOCAL stack and saves a signed-in browser state.
 export default async function globalSetup(config: FullConfig) {
@@ -27,4 +28,7 @@ export default async function globalSetup(config: FullConfig) {
   await page.waitForURL("**/dashboard", { timeout: 30_000 });
   await page.context().storageState({ path: "tests/e2e/.auth/user.json" });
   await browser.close();
+
+  // Separate fresh accounts for suites that assert exact counts, so file order never matters.
+  for (const label of ["dashboard", "fitness"]) await createIsolatedUser(baseURL, label);
 }

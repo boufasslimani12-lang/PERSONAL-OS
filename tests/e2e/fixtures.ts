@@ -23,3 +23,36 @@ export const test = base.extend<{ problems: string[]; expectedConsoleErrors: Reg
 });
 
 export { expect };
+
+/**
+ * A fresh, isolated signed-in user for one test file, so suites never depend on each other's data or order.
+ * Returns the storage-state path to pass to `test.use({ storageState })`. Deleted by global teardown.
+ */
+export async function createIsolatedUser(baseURL: string, label: string): Promise<string> {
+  const { chromium } = await import("@playwright/test");
+  const { appendFileSync, mkdirSync } = await import("node:fs");
+  const { SUPABASE_URL, SECRET_KEY, assertLocalSupabase } = await import("./env");
+  assertLocalSupabase();
+  const email = `e2e-${label}-${Date.now()}@personal-os.test`;
+  const password = `E2e-${crypto.randomUUID()}`;
+  const res = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+    method: "POST",
+    headers: { apikey: SECRET_KEY, Authorization: `Bearer ${SECRET_KEY}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password, email_confirm: true, user_metadata: { display_name: "E2E" } }),
+  });
+  if (!res.ok) throw new Error(`Could not create test user: ${res.status} ${await res.text()}`);
+  const { id } = (await res.json()) as { id: string };
+  mkdirSync("tests/e2e/.auth", { recursive: true });
+  appendFileSync("tests/e2e/.auth/extra-users.txt", id + "\n");
+  const browser = await chromium.launch();
+  const page = await browser.newPage();
+  await page.goto(`${baseURL}/login`);
+  await page.fill("#email", email);
+  await page.fill("#password", password);
+  await page.click("button[type=submit]");
+  await page.waitForURL("**/dashboard", { timeout: 30_000 });
+  const path = `tests/e2e/.auth/${label}.json`;
+  await page.context().storageState({ path });
+  await browser.close();
+  return path;
+}

@@ -328,3 +328,32 @@ test("fitness: next training day cycles through the program; exercise order foll
   assert.equal(targetRepsValue("8-12"), 8);
   assert.equal(targetRepsValue("AMRAP"), null);
 });
+
+import { formatTime, formatDateTime } from "../lib/dates.ts";
+test("time formatting is locale-independent HH:mm in the given zone", () => {
+  assert.equal(formatTime("2026-01-01T08:05:00Z", "Africa/Casablanca"), "09:05");
+  assert.equal(formatTime("2026-01-01T23:30:00Z", "Africa/Casablanca"), "00:30");
+  assert.equal(formatTime("2026-07-01T13:00:00Z", "America/New_York"), "09:00");
+  assert.equal(formatDateTime("2026-01-01T23:30:00Z", "Africa/Casablanca"), "Jan 2, 00:30");
+});
+
+import { buildZoneRules, setAppTimeZone } from "../lib/dates.ts";
+test("zone rules: server-built offsets drive conversions, matching Intl and catching DST", () => {
+  const from = Date.parse("2026-01-01T00:00:00Z");
+  const to = Date.parse("2027-01-01T00:00:00Z");
+  const paris = buildZoneRules("Europe/Paris", from, to);
+  assert.deepEqual(paris.transitions.map((t) => [new Date(t.at).toISOString(), t.offset]), [
+    ["2026-01-01T00:00:00.000Z", 60],
+    ["2026-03-29T01:00:00.000Z", 120],
+    ["2026-10-25T01:00:00.000Z", 60],
+  ]);
+  setAppTimeZone("Europe/Paris", paris);
+  assert.equal(dateInZone(new Date("2026-06-30T22:30:00Z")), "2026-07-01");
+  assert.equal(formatTime("2026-06-30T22:30:00Z"), "00:30");
+  assert.equal(fromZonedWallTime("2026-03-29T03:30"), "2026-03-29T01:30:00.000Z");
+  // a table that differs from the runtime's own tz data wins (the browser follows the server)
+  setAppTimeZone("Europe/Paris", { tz: "Europe/Paris", from, to, transitions: [{ at: from, offset: 0 }] });
+  assert.equal(formatTime("2026-06-30T22:30:00Z"), "22:30");
+  assert.equal(fromZonedWallTime("2026-06-30T09:00"), "2026-06-30T09:00:00.000Z");
+  setAppTimeZone(undefined);
+});

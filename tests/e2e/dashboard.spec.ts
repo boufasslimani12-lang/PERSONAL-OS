@@ -11,6 +11,9 @@ function isoInCasablanca(offsetDays = 0) {
 }
 
 test.describe.serial("dashboard", () => {
+  // Own fresh account (created in global-setup): these tests assert exact counts and must not see other suites' data.
+  test.use({ storageState: "tests/e2e/.auth/dashboard.json" });
+
   test("new account: honest empty states, no invented numbers", async ({ page, problems }) => {
     await page.goto("/dashboard");
     await expect(page.getByRole("heading", { level: 1 })).toContainText(/Good (morning|afternoon|evening), E2E\./);

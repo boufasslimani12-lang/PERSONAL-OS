@@ -20,7 +20,7 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   const inactivePages = inactiveAreaPages(areas ?? []);
   const hiddenHrefs = inactivePages.map((p) => p.href);
   return (
-    <DateProvider timeZone={dates.tz}>
+    <DateProvider timeZone={dates.tz} rules={dates.rules}>
     <div className="flex min-h-dvh">
       <Sidebar name={profile?.display_name ?? user.email ?? ""} hiddenHrefs={hiddenHrefs} />
       <div className="flex min-w-0 flex-1 flex-col">

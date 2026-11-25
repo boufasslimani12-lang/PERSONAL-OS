@@ -117,13 +117,14 @@ test.describe.serial("core journeys", () => {
     void problems;
   });
 
-  test("habit check-in updates the streak", async ({ page, problems }) => {
+  test("habit check-in updates the streak", async ({ page, problems }, info) => {
+    const name = `Meditate ${info.retry}`; // unique per attempt: the account is shared across suites
     await page.goto("/habits");
     await page.getByRole("button", { name: "New habit" }).click();
-    await page.fill("#name", "Meditate");
+    await page.fill("#name", name);
     await page.getByRole("button", { name: "Create", exact: true }).click();
-    await page.getByRole("button", { name: "Complete Meditate" }).last().click();
-    await expect(page.locator("tr", { hasText: "Meditate" })).toContainText("100%");
+    await page.getByRole("button", { name: `Complete ${name}` }).last().click();
+    await expect(page.locator("tr", { hasText: name })).toContainText("100%");
     void problems;
   });
 
