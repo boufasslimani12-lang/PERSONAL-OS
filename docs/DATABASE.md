@@ -27,6 +27,19 @@ Source of truth: `supabase/migrations/`. Postgres 17 on Supabase.
 | Growth | `books`, `growth_items` (`kind`: course / challenge / lesson / achievement / reflection / improvement) |
 | Journal | `notes` (`kind`: daily / weekly / monthly / note, `tags text[]`, `mood`, links to area/goal/project/habit) |
 
+## Workout programs (migration `20261125000001_workout_programs.sql`)
+- `workout_programs` (owner-only RLS): name, description, `is_active`, `archived_at`, `sort_order`.
+  Partial unique index `workout_programs_one_active` allows at most one active, non-archived program per user.
+- `workout_templates.program_id` (nullable, `on delete set null`): a training day belongs to a program.
+  Existing days with a `split_name` are backfilled into one program per split name; nothing else changes.
+- RPCs, **SECURITY INVOKER** (RLS applies; granted to `authenticated`, revoked from `anon`):
+  `set_active_workout_program(p_program_id)` and `duplicate_workout_program(p_program_id, p_name)` (copies days and exercises).
+- Sessions reuse `workouts` (`template_id` = training day, `ended_at null` = unfinished/resumable) and `workout_sets`.
+- Verified locally: backfill on legacy rows, duplication, one-active constraint, a user cannot activate or copy
+  another user's program (even with its real id), `anon` cannot execute the functions.
+- **Production status:** not applied yet — requires owner approval. Until then the Fitness page shows a notice in
+  "My program" and every other section keeps working.
+
 ## History preservation
 - Habit logs keep the target in force when logged; editing or archiving a habit never alters past logs.
 - Task completions are append-only rows; recurring tasks roll their `due_date` forward.

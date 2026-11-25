@@ -10,6 +10,7 @@ import { Attachments } from "@/components/shared/attachments";
 import { addDaysISO, formatDate, startOfMonthISO, startOfWeekISO, todayISO } from "@/lib/dates";
 import { renderMarkdown } from "@/lib/markdown";
 import { useDb } from "@/lib/hooks/use-db";
+import { useCreateFromQuery } from "@/lib/hooks/use-create-from-query";
 import { cn } from "@/lib/utils";
 import { areaOptions, type AreaLike } from "@/lib/life-areas";
 import type { Row } from "@/lib/types";
@@ -54,6 +55,7 @@ export function JournalView({ notes, areas, goals, projects, habits }: {
   }
 
   const todayDaily = notes.find((n) => n.kind === "daily" && n.entry_date === today);
+  useCreateFromQuery(["daily", "note"], (v) => startNew(v as Kind));
   const streak = (() => { let d = todayDaily ? today : addDaysISO(today, -1); let s = 0; const set = new Set(notes.filter((n) => n.kind === "daily").map((n) => n.entry_date)); while (set.has(d)) { s++; d = addDaysISO(d, -1); } return s; })();
 
   return (

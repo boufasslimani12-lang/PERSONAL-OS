@@ -18,6 +18,12 @@ All day boundaries (today, weeks, months, "completed on") are computed in the pr
 | Overall life progress | mean of non-null area scores, always displayed with coverage ("n of 10 areas"). |
 | Finance | net = income − expenses; savings rate = net ÷ income (null if income = 0); budget utilisation = spent in budgeted categories ÷ their budgets. Only profile-currency transactions are summed (no invented FX). |
 | Fitness | volume = Σ reps × weight of completed sets; e1RM (Epley) = w × (1 + reps/30); BMI = kg ÷ m². |
+| Exercise progression | Per finished workout containing completed sets of the exercise: top set = heaviest completed set (reps at that weight, best of ties). Latest / previous = top set of the last two sessions; best = max top set; sessions = number of such workouts. Unfinished workouts and planned (unticked) sets never count. |
+| Previous performance | The completed sets of the most recent finished workout with that exercise, in set order. New sessions prefill each set's weight from it (else the day's target weight) and reps from the target's first number. |
+| Next training session | In the active program, the day after the one most recently finished (cycling); the first day if none finished. |
+| Dashboard — tasks today | done = completions whose due/occurrence date is today (+ undated tasks completed today); total = done + open top-level tasks due today. Overdue tasks are counted separately. |
+| Dashboard — daily focus | Up to 3: open tasks due today or overdue (priority, then date), then open critical/high tasks without a date, then tasks completed today. |
+| Dashboard — habits today | Scheduled today (daily, matching weekday, or weekly habits still short of their weekly target); streak shown only when > 0. |
 | Education | subject grade = Σ(score/max × scale × weight) ÷ Σweight over graded assessments; semester average = coefficient-weighted mean in %. |
 | Skills | progress = current level ÷ target level. |
 | Languages | level progress = CEFR index(current) ÷ index(target); weekly minutes vs goal. |

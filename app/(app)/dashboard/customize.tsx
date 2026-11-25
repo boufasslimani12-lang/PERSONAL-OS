@@ -7,16 +7,13 @@ import { Checkbox } from "@/components/ui/form";
 import { useDb } from "@/lib/hooks/use-db";
 
 export const DASHBOARD_WIDGETS = [
+  { key: "quick", label: "Quick actions" },
+  { key: "overview", label: "Daily overview" },
+  { key: "focus", label: "Daily focus" },
+  { key: "habits", label: "Today's habits" },
   { key: "areas", label: "Life areas" },
-  { key: "today_tasks", label: "Today's tasks" },
-  { key: "today_habits", label: "Today's habits" },
-  { key: "deadlines", label: "Upcoming deadlines" },
-  { key: "events", label: "Upcoming events" },
-  { key: "weekly_goals", label: "Weekly goals" },
-  { key: "stats", label: "Key statistics" },
   { key: "productivity", label: "Weekly productivity" },
-  { key: "monthly", label: "Monthly performance" },
-  { key: "activity", label: "Recent activity" },
+  { key: "upcoming", label: "Upcoming" },
 ];
 
 export function CustomizeDashboard({ hidden }: { hidden: string[] }) {

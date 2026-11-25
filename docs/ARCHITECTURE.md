@@ -47,6 +47,15 @@ tests/                    engine unit tests
   keeps it, labelled "(inactive)". Filters list every area (`areaFilterOptions`) so old records stay findable.
 - Deactivating never deletes or changes records; reactivating restores everything.
 
+## Dashboard and Fitness
+- Dashboard (`app/(app)/dashboard/page.tsx`) is a Server Component on top of `loadLifeSnapshot()` (same scores as
+  Analytics) and `lib/engine/dashboard.ts` (today's tasks, focus, upcoming). Task and habit controls reuse
+  `TaskCheck`/`HabitCheck`, so they write the same records as the Tasks and Habits pages.
+- Quick actions link to `?new=<kind>`; `useCreateFromQuery()` opens that module's existing create dialog.
+- Fitness (`app/(app)/fitness/`): `program-section` (programs, days, exercises), `workout-logger` (live session),
+  `progression-section`, `history-section`; session actions in `lib/hooks/use-workout-actions.ts`; calculations in
+  `lib/engine/fitness.ts`.
+
 ## Time zones
 The server runs in UTC. Every "today", day boundary and displayed time uses `profiles.timezone`
 (default Africa/Casablanca): `getDateContext()` on the server and `DateProvider` + `lib/dates.ts` on the client.

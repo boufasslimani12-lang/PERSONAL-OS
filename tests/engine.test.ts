@@ -240,3 +240,91 @@ test("life areas: inactive areas leave navigation and new-item selectors but sta
   assert.equal(areaFilterOptions(areas).length, 3);
   assert.equal(areaFilterOptions(areas)[0].label, "Fitness & Health (inactive)");
 });
+
+import { todayTaskSummary, dailyFocus, sortUpcoming, dailySubtitle, greeting } from "../lib/engine/dashboard.ts";
+test("dashboard: today's task summary separates today from overdue", () => {
+  const today = "2026-01-10";
+  const dateOf = (ts: string) => ts.slice(0, 10);
+  const tasks = [
+    { id: "a", status: "todo", priority: "medium", due_date: today },
+    { id: "b", status: "todo", priority: "medium", due_date: "2026-01-08" },
+    { id: "c", status: "done", priority: "medium", due_date: today },
+    { id: "s", status: "todo", priority: "medium", due_date: today, parent_task_id: "a" },
+  ];
+  const completions = [
+    { task_id: "c", occurrence_date: today, completed_at: "2026-01-10T09:00:00Z" },
+    { task_id: "r", occurrence_date: "2026-01-09", completed_at: "2026-01-10T09:00:00Z" }, // late completion of yesterday's occurrence
+    { task_id: "u", occurrence_date: null, completed_at: "2026-01-10T11:00:00Z" },
+  ];
+  assert.deepEqual(todayTaskSummary(tasks, completions, today, dateOf), { done: 2, total: 3, overdue: 1 });
+});
+
+test("dashboard: daily focus picks due/overdue by priority, then important undated, then done today", () => {
+  const today = "2026-01-10";
+  const dateOf = (ts: string) => ts.slice(0, 10);
+  const t = (id: string, o: Record<string, unknown>) => ({ id, status: "todo", priority: "medium", due_date: null, ...o });
+  const tasks = [
+    t("low-today", { priority: "low", due_date: today }),
+    t("crit-overdue", { priority: "critical", due_date: "2026-01-05" }),
+    t("high-undated", { priority: "high" }),
+    t("med-undated", {}),
+    t("future", { priority: "critical", due_date: "2026-02-01" }),
+    t("done", { status: "done", completed_at: "2026-01-10T08:00:00Z" }),
+  ];
+  assert.deepEqual(dailyFocus(tasks, today, dateOf).map((x) => x.id), ["crit-overdue", "low-today", "high-undated"]);
+  assert.deepEqual(dailyFocus(tasks, today, dateOf, 5).map((x) => x.id), ["crit-overdue", "low-today", "high-undated", "done"]);
+  assert.deepEqual(dailyFocus([], today, dateOf), []);
+});
+
+test("dashboard: upcoming is chronological; greeting and subtitle are stable", () => {
+  const items = [
+    { kind: "Event", title: "B", date: "2026-01-11", time: "09:00", href: "", key: "1" },
+    { kind: "Task", title: "A", date: "2026-01-11", time: null, href: "", key: "2" },
+    { kind: "Event", title: "C", date: "2026-01-10", time: "18:00", href: "", key: "3" },
+  ];
+  assert.deepEqual(sortUpcoming(items).map((i) => i.key), ["3", "2", "1"]);
+  assert.equal(greeting(8), "Good morning");
+  assert.equal(greeting(14), "Good afternoon");
+  assert.equal(greeting(21), "Good evening");
+  assert.equal(dailySubtitle("2026-01-10"), dailySubtitle("2026-01-10"));
+  assert.notEqual(dailySubtitle("2026-01-10"), dailySubtitle("2026-01-11"));
+});
+
+import { exerciseSessions, exerciseProgress, previousPerformance, nextTrainingDay, orderWorkoutExercises, workoutSummary, targetRepsValue } from "../lib/engine/fitness.ts";
+test("fitness: per-exercise progression from finished workouts only", () => {
+  const workouts = [
+    { id: "w1", started_at: "2026-01-01T10:00:00Z", ended_at: "2026-01-01T11:00:00Z", template_id: "d1" },
+    { id: "w2", started_at: "2026-01-04T10:00:00Z", ended_at: "2026-01-04T11:10:00Z", template_id: "d2" },
+    { id: "w3", started_at: "2026-01-08T10:00:00Z", ended_at: null, template_id: "d1" }, // unfinished: ignored
+  ];
+  const s = (workout_id: string, set_number: number, weight: number, reps: number, completed = true, exercise_id = "bench") => ({ workout_id, set_number, weight, reps, completed, exercise_id });
+  const sets = [
+    s("w1", 1, 40, 12), s("w1", 2, 45, 10), s("w1", 3, 45, 8),
+    s("w2", 1, 45, 12), s("w2", 2, 50, 8), s("w2", 3, 60, 5, false),
+    s("w3", 1, 70, 5),
+    s("w1", 1, 100, 5, true, "squat"),
+  ];
+  const sessions = exerciseSessions("bench", sets, workouts);
+  assert.deepEqual(sessions.map((x) => [x.workoutId, x.topWeight, x.topReps, x.sets]), [["w1", 45, 10, 3], ["w2", 50, 8, 2]]);
+  assert.deepEqual(exerciseProgress(sessions), { sessions: 2, latestWeight: 50, previousWeight: 45, bestWeight: 50, latestReps: 8, change: 5 });
+  assert.deepEqual(exerciseProgress([]), { sessions: 0, latestWeight: null, previousWeight: null, bestWeight: null, latestReps: null, change: null });
+  const prev = previousPerformance("bench", sets, workouts, "w2")!;
+  assert.equal(prev.startedAt, workouts[0].started_at);
+  assert.deepEqual(prev.sets.map((x) => x.weight), [40, 45, 45]);
+  assert.equal(previousPerformance("deadlift", sets, workouts), null);
+  assert.deepEqual(workoutSummary(workouts[1], sets), { exercises: 1, sets: 2, volume: 45 * 12 + 50 * 8, minutes: 70 });
+});
+
+test("fitness: next training day cycles through the program; exercise order follows the day", () => {
+  const days = [{ id: "d1" }, { id: "d2" }, { id: "d3" }];
+  const w = (template_id: string, started_at: string, ended_at: string | null = started_at) => ({ id: started_at, template_id, started_at, ended_at });
+  assert.equal(nextTrainingDay(days, [])!.id, "d1");
+  assert.equal(nextTrainingDay(days, [w("d1", "2026-01-01")])!.id, "d2");
+  assert.equal(nextTrainingDay(days, [w("d1", "2026-01-01"), w("d3", "2026-01-05")])!.id, "d1");
+  assert.equal(nextTrainingDay(days, [w("d2", "2026-01-09", null)])!.id, "d1"); // unfinished doesn't advance
+  assert.equal(nextTrainingDay([], []), null);
+  const order = orderWorkoutExercises([{ exercise_id: "x", set_number: 1 }, { exercise_id: "b", set_number: 1 }, { exercise_id: "a", set_number: 1 }], ["a", "b"]);
+  assert.deepEqual(order, ["a", "b", "x"]);
+  assert.equal(targetRepsValue("8-12"), 8);
+  assert.equal(targetRepsValue("AMRAP"), null);
+});

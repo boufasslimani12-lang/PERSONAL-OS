@@ -14,6 +14,7 @@ import { addDaysISO, eachDayISO, formatDate, startOfMonthISO, todayISO, endOfMon
 import { consistency, currentStreak, longestStreak, isScheduledOn, aggregateConsistency, isDueToday } from "@/lib/engine/habits";
 import { formatPct } from "@/lib/format";
 import { useDb } from "@/lib/hooks/use-db";
+import { useCreateFromQuery } from "@/lib/hooks/use-create-from-query";
 import { cn } from "@/lib/utils";
 import { areaOptions } from "@/lib/life-areas";
 import type { Habit, HabitLog, LifeArea } from "@/lib/types";
@@ -65,6 +66,7 @@ export function HabitsBoard({ module, title, description, habits, logs, areas, w
   ];
 
   const detail = detailId ? habits.find((h) => h.id === detailId) : null;
+  useCreateFromQuery(["habit"], () => form.create({ kind: "binary", target_value: 1, frequency: "daily", times_per_week: 3, start_date: today, color: module === "religion" ? "#14b8a6" : "#10b981", life_area_id: defaultArea }));
 
   async function addTemplate(t: HabitTemplate) {
     await db.insert("habits", {

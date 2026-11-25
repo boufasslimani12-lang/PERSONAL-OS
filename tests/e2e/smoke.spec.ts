@@ -152,34 +152,6 @@ test.describe.serial("core journeys", () => {
     void problems;
   });
 
-  test("workout: log a set, rest timer, finish, then delete with in-app confirmation", async ({ page, problems }) => {
-    await page.goto("/fitness");
-    await page.getByRole("button", { name: "Start empty workout" }).click();
-    await expect(page.getByText("sets done")).toBeVisible();
-    await page.locator("select").filter({ hasText: "Add exercise…" }).selectOption({ label: "Barbell Back Squat" });
-    await page.getByRole("button", { name: "Add", exact: true }).click();
-    await page.getByLabel("Reps").first().fill("5");
-    await page.getByLabel("Weight").first().fill("100");
-    await page.getByLabel("Weight").first().blur();
-    await page.getByRole("button", { name: "Mark set done" }).first().click();
-    await expect(page.getByRole("button", { name: "Skip" })).toBeVisible();
-    await page.getByRole("button", { name: "Finish" }).click();
-    await expect(page.getByText("Workout saved")).toBeVisible();
-    await page.getByRole("tab", { name: /Overview/ }).click();
-    await expect(page.getByText(/100 kg · e1RM 117 kg/)).toBeVisible();
-
-    await page.getByRole("tab", { name: /Workouts/ }).click();
-    await page.getByRole("button", { name: "Delete workout" }).first().click();
-    const confirm = page.locator("dialog[open]");
-    await expect(confirm).toContainText("Delete “Workout”?");
-    await confirm.getByRole("button", { name: "Cancel" }).click();
-    await expect(page.getByRole("button", { name: "Delete workout" })).toHaveCount(1);
-    await page.getByRole("button", { name: "Delete workout" }).first().click();
-    await page.locator("dialog[open]").getByRole("button", { name: "Delete" }).click();
-    await expect(page.getByText("No completed workouts")).toBeVisible();
-    void problems;
-  });
-
   test("calendar event appears in the agenda", async ({ page, problems }) => {
     await page.goto("/calendar?view=agenda");
     await page.getByRole("button", { name: "New event" }).click();

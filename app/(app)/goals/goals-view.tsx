@@ -13,6 +13,7 @@ import { GOAL_LEVELS, GOAL_STATUSES, PRIORITIES, optionLabel, optionTone } from 
 import { deadlineState, type GoalProgress } from "@/lib/engine/goals";
 import { formatDate, relativeDayLabel, todayISO, isoFromTimestamp } from "@/lib/dates";
 import { useDb } from "@/lib/hooks/use-db";
+import { useCreateFromQuery } from "@/lib/hooks/use-create-from-query";
 import { ToggleCheck } from "@/components/shared/toggle-check";
 import { formatPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -79,6 +80,7 @@ export function GoalsView({ goals, milestones, tasks, areas, progress }: {
   ];
 
   const detail = detailId ? goals.find((g) => g.id === detailId) : null;
+  useCreateFromQuery(["goal"], () => form.create({ level: level === "all" ? "annual" : level, status: "active", priority: "medium", progress_mode: "auto", manual_progress: 0, start_date: today }));
 
   return (
     <div>

@@ -1,22 +1,22 @@
 import Link from "next/link";
 import {
-  LayoutDashboard, ListChecks, Repeat, CalendarDays, Target, Activity, Flag, Dumbbell, GraduationCap, Wallet, NotebookPen, CheckCircle2,
-  Languages, Code2, Users, Briefcase, Moon, Sprout, type LucideIcon,
+  ListChecks, Repeat, CalendarDays, Target, Activity, Dumbbell, GraduationCap, Languages, Code2, Users,
+  Briefcase, Moon, Wallet, Sprout, NotebookPen, Flame, ChevronRight, Plus, PenLine, type LucideIcon,
 } from "lucide-react";
 import { loadLifeSnapshot, SCORE_WINDOW_DAYS } from "@/lib/server/snapshot";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
-import { Badge, EmptyState, Progress, ProgressRing, StatCard } from "@/components/ui/misc";
-import { TaskRow } from "@/components/shared/task-row";
+import { Badge, EmptyState, Progress, ProgressRing } from "@/components/ui/misc";
+import { TaskCheck } from "@/components/shared/task-row";
 import { HabitCheck } from "@/components/shared/habit-check";
 import { BarSeriesChart } from "@/components/charts";
-import { CustomizeDashboard, DASHBOARD_WIDGETS } from "./customize";
-import { addDaysISO, addMonthsISO, eachDayISO, endOfMonthISO, formatDate, formatDateTime, relativeDayLabel, startOfMonthISO } from "@/lib/dates";
-import { isDueToday, aggregateConsistency } from "@/lib/engine/habits";
-import { compareTasks, taskCompletionRate } from "@/lib/engine/tasks";
-import { eventRangeFilter, eventRangeUpperBound, expandEvents } from "@/lib/engine/calendar";
-import { summarize } from "@/lib/engine/finance";
-import { formatMoney, formatPct } from "@/lib/format";
-import { AREA_HREF } from "@/lib/nav";
+import { CustomizeDashboard } from "./customize";
+import { addDaysISO, eachDayISO, formatDate, formatTime, relativeDayLabel } from "@/lib/dates";
+import { isDueToday, currentStreak } from "@/lib/engine/habits";
+import { expandEvents, eventRangeFilter, eventRangeUpperBound } from "@/lib/engine/calendar";
+import { dailyFocus, dailySubtitle, greeting, sortUpcoming, todayTaskSummary, type Upcoming } from "@/lib/engine/dashboard";
+import { PRIORITIES, optionLabel, optionTone } from "@/lib/constants";
+import { AREA_HREF } from "@/lib/life-areas";
+import { cn } from "@/lib/utils";
 
 export const metadata = { title: "Dashboard" };
 
@@ -25,312 +25,281 @@ const AREA_ICONS: Record<string, LucideIcon> = {
   career: Briefcase, religion: Moon, finance: Wallet, growth: Sprout, mind: NotebookPen,
 };
 
+const QUICK_ACTIONS = [
+  { href: "/tasks?new=task", label: "Task", icon: ListChecks },
+  { href: "/habits?new=habit", label: "Habit", icon: Repeat },
+  { href: "/goals?new=goal", label: "Goal", icon: Target },
+  { href: "/journal?new=daily", label: "Journal", icon: PenLine },
+  { href: "/calendar", label: "Calendar", icon: CalendarDays },
+];
+
 export default async function DashboardPage() {
   const s = await loadLifeSnapshot();
-  const { supabase, today } = s;
+  const { supabase, today, dates } = s;
   const hidden = new Set<string>(Array.isArray(s.profile?.dashboard_widgets) ? (s.profile!.dashboard_widgets as string[]) : []);
   const show = (k: string) => !hidden.has(k);
+  const in7 = addDaysISO(today, 7);
   const in14 = addDaysISO(today, 14);
-  const sixMonthsAgo = addMonthsISO(startOfMonthISO(today), -5);
 
-  const [events, workouts, txs, cats, study, notes, assessments, projects] = await Promise.all([
-    supabase.from("events").select("*").lte("start_at", eventRangeUpperBound(in14)).or(eventRangeFilter(today)),
-    supabase.from("workouts").select("id,name,started_at,ended_at").gte("started_at", sixMonthsAgo).order("started_at", { ascending: false }),
-    supabase.from("transactions").select("*").gte("occurred_on", startOfMonthISO(today)).order("occurred_on", { ascending: false }),
-    supabase.from("finance_categories").select("*"),
-    supabase.from("study_sessions").select("id,started_at,duration_minutes,notes").gte("started_at", addDaysISO(today, -60)).order("started_at", { ascending: false }),
-    supabase.from("notes").select("id,title,kind,entry_date,created_at").order("created_at", { ascending: false }).limit(5),
-    supabase.from("assessments").select("id,title,due_date,kind,status").eq("status", "pending").gte("due_date", today).lte("due_date", in14),
-    supabase.from("projects").select("id,title,due_date,status").is("archived_at", null).not("status", "in", "(completed,cancelled)").gte("due_date", today).lte("due_date", in14),
+  const [events, assessments, projects] = await Promise.all([
+    supabase.from("events").select("*").lte("start_at", eventRangeUpperBound(in7)).or(eventRangeFilter(today)),
+    supabase.from("assessments").select("id,title,due_date,kind").eq("status", "pending").gte("due_date", today).lte("due_date", in14),
+    supabase.from("projects").select("id,title,due_date").is("archived_at", null).not("status", "in", "(completed,cancelled)").gte("due_date", today).lte("due_date", in14),
   ]);
 
-  const currency = s.profile?.currency ?? "MAD";
   const areaById = new Map(s.areas.map((a) => [a.id, a]));
 
-  // Today
-  const openTasks = s.tasks.filter((t) => !t.parent_task_id && t.status !== "done" && t.status !== "cancelled");
-  const todayTasks = openTasks.filter((t) => t.due_date && t.due_date <= today).sort(compareTasks);
-  const doneToday = s.completions.filter((c) => s.dates.dateOf(c.completed_at) === today).length;
+  // B. Daily overview
+  const taskSummary = todayTaskSummary(s.tasks, s.completions, today, dates.dateOf);
   const todayHabits = s.habits.filter((h) => isDueToday(h, today, s.habitLogs, s.weekStartsOn));
   const logsToday = new Map(s.habitLogs.filter((l) => l.log_date === today).map((l) => [l.habit_id, l]));
   const habitsDone = todayHabits.filter((h) => logsToday.get(h.id)?.completed).length;
+  const activeGoals = s.goals.filter((g) => g.status === "active" || g.status === "not_started");
+  const goalsDueSoon = activeGoals.filter((g) => g.target_date && g.target_date >= today && g.target_date <= in14).length;
 
-  // Upcoming
-  const deadlines = [
-    ...openTasks.filter((t) => t.due_date && t.due_date > today && t.due_date <= in14).map((t) => ({ id: t.id, title: t.title, date: t.due_date!, kind: "Task", href: "/tasks" })),
-    ...s.goals.filter((g) => g.target_date && g.target_date >= today && g.target_date <= in14 && !["completed", "cancelled"].includes(g.status)).map((g) => ({ id: g.id, title: g.title, date: g.target_date!, kind: "Goal", href: `/goals?open=${g.id}` })),
-    ...(assessments.data ?? []).map((a) => ({ id: a.id, title: a.title, date: a.due_date!, kind: a.kind === "exam" ? "Exam" : "Assignment", href: "/education" })),
-    ...(projects.data ?? []).map((p) => ({ id: p.id, title: p.title, date: p.due_date!, kind: "Project", href: "/tasks?view=projects" })),
-  ].sort((a, b) => a.date.localeCompare(b.date)).slice(0, 8);
-  const upcomingEvents = expandEvents(events.data ?? [], today, addDaysISO(today, 7), s.tz).slice(0, 6);
+  // C. Daily focus
+  const focus = dailyFocus(s.tasks, today, dates.dateOf, 3);
 
-  // Weekly goals
-  const weeklyGoals = s.goals.filter((g) => g.level === "weekly" && !["completed", "cancelled"].includes(g.status)).slice(0, 6);
+  // D. Habit streaks (only shown when the streak is real, i.e. > 0)
+  const logsByHabit = new Map<string, typeof s.habitLogs>();
+  for (const l of s.habitLogs) logsByHabit.set(l.habit_id, [...(logsByHabit.get(l.habit_id) ?? []), l]);
 
-  // Goal stats
-  const yearStart = today.slice(0, 4) + "-01-01";
-  const activeGoals = s.goals.filter((g) => ["active", "not_started", "on_hold"].includes(g.status));
-  const completedThisYear = s.goals.filter((g) => g.status === "completed" && (g.completed_at ?? g.updated_at) >= yearStart).length;
-  const overdueGoals = activeGoals.filter((g) => g.target_date && g.target_date < today).length;
-  const avgGoal = activeGoals.length ? activeGoals.reduce((a, g) => a + (s.goalIndex.get(g.id).value ?? 0), 0) / activeGoals.length : null;
-
-  // Weekly productivity: last 7 days
+  // F. Weekly productivity — last 7 days, real completions only
   const week = eachDayISO(addDaysISO(today, -6), today);
   const productivity = week.map((d) => ({
     day: formatDate(d, { weekday: "short" }),
-    tasks: s.completions.filter((c) => s.dates.dateOf(c.completed_at) === d).length,
+    tasks: s.completions.filter((c) => dates.dateOf(c.completed_at) === d).length,
     habits: s.habitLogs.filter((l) => l.log_date === d && l.completed).length,
   }));
   const hasProductivity = productivity.some((p) => p.tasks || p.habits);
 
-  // Monthly performance: last 6 months, rates
-  const months = Array.from({ length: 6 }, (_, i) => addMonthsISO(startOfMonthISO(today), i - 5));
-  const monthly = months.map((m) => {
-    const end = endOfMonthISO(m);
-    const tr = taskCompletionRate(s.tasks, s.completions, m, end, today, s.tz);
-    const hr = aggregateConsistency(s.habits, s.habitLogs, m, end, today, s.weekStartsOn);
-    return { month: formatDate(m, { month: "short" }), tasks: tr.rate === null ? null : Math.round(tr.rate), habits: hr.rate === null ? null : Math.round(hr.rate) };
-  });
-  const hasMonthly = monthly.some((m) => m.tasks !== null || m.habits !== null);
+  // G. Upcoming — events, deadlines and scheduled activities, chronological
+  const upcoming = sortUpcoming<Upcoming & { color?: string }>([
+    ...expandEvents(events.data ?? [], today, in7, s.tz).map((e) => ({
+      kind: e.kind === "reminder" ? "Reminder" : e.kind === "deadline" ? "Deadline" : "Event", title: e.title, date: e.occurrence_date,
+      time: e.all_day ? null : formatTime(e.occurrence_start, s.tz), href: "/calendar?view=agenda", key: `e-${e.id}-${e.occurrence_date}`, color: e.color ?? undefined,
+    })),
+    ...s.tasks.filter((t) => !t.parent_task_id && t.status !== "done" && t.status !== "cancelled" && t.due_date && t.due_date > today && t.due_date <= in7)
+      .map((t) => ({ kind: "Task", title: t.title, date: t.due_date!, time: t.due_time?.slice(0, 5) ?? null, href: "/tasks?view=upcoming", key: `t-${t.id}` })),
+    ...s.goals.filter((g) => g.target_date && g.target_date >= today && g.target_date <= in14 && !["completed", "cancelled"].includes(g.status))
+      .map((g) => ({ kind: "Goal", title: g.title, date: g.target_date!, time: null, href: `/goals?open=${g.id}`, key: `g-${g.id}` })),
+    ...(assessments.data ?? []).map((a) => ({ kind: a.kind === "exam" ? "Exam" : "Assignment", title: a.title, date: a.due_date!, time: null, href: "/education", key: `a-${a.id}` })),
+    ...(projects.data ?? []).map((p) => ({ kind: "Project", title: p.title, date: p.due_date!, time: null, href: "/tasks?view=projects", key: `p-${p.id}` })),
+  ]).slice(0, 7);
 
-  // Month snapshot
-  const fin = summarize((txs.data ?? []).filter((t) => t.currency === currency), cats.data ?? [], s.month.from, s.month.to);
-  const workoutsThisMonth = (workouts.data ?? []).filter((w) => s.dates.dateOf(w.started_at) >= s.month.from).length;
-  const studyMinMonth = (study.data ?? []).filter((x) => s.dates.dateOf(x.started_at) >= s.month.from).reduce((a, x) => a + x.duration_minutes, 0);
-
-  // Recent activity
-  const taskTitle = new Map(s.tasks.map((t) => [t.id, t.title]));
-  const habitName = new Map(s.habits.map((h) => [h.id, h.name]));
-  const activity = [
-    ...s.completions.slice(-20).map((c) => ({ at: c.completed_at, icon: CheckCircle2, text: `Completed “${taskTitle.get(c.task_id) ?? "task"}”` })),
-    ...s.habitLogs.filter((l) => l.completed).slice(-20).map((l) => ({ at: l.updated_at, icon: Repeat, text: `Checked in “${habitName.get(l.habit_id) ?? "habit"}”` })),
-    ...(workouts.data ?? []).slice(0, 5).map((w) => ({ at: w.started_at, icon: Dumbbell, text: `Workout: ${w.name}` })),
-    ...(txs.data ?? []).slice(0, 5).map((t) => ({ at: t.created_at, icon: Wallet, text: `${t.kind === "income" ? "Income" : "Expense"} ${formatMoney(Number(t.amount), t.currency)}${t.description ? ` · ${t.description}` : ""}` })),
-    ...(notes.data ?? []).map((n) => ({ at: n.created_at, icon: NotebookPen, text: `Wrote ${n.kind === "note" ? "note" : `${n.kind} journal`}${n.title ? ` “${n.title}”` : ""}` })),
-    ...(study.data ?? []).slice(0, 5).map((x) => ({ at: x.started_at, icon: GraduationCap, text: `Studied ${x.duration_minutes} min` })),
-  ].sort((a, b) => b.at.localeCompare(a.at)).slice(0, 8);
-
-  const hour = s.dates.hour;
-  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
-  const isNewUser = s.goals.length === 0 && s.tasks.length === 0 && s.habits.length === 0;
+  const name = s.profile?.display_name?.trim() || "there";
 
   return (
     <div className="space-y-6">
-      {/* Welcome */}
-      <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-border bg-gradient-to-br from-accent via-card to-card p-5 sm:p-6">
-        <div>
-          <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">{formatDate(today, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}</p>
-          <h1 className="mt-1 text-2xl font-semibold tracking-tight">{greeting}, {s.profile?.display_name ?? "there"}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">
-            {todayTasks.length} task{todayTasks.length === 1 ? "" : "s"} due · {habitsDone}/{todayHabits.length} habits done · {doneToday} completed today
-          </p>
-        </div>
-        <div className="flex items-center gap-4">
-          <div className="text-right">
-            <p className="text-xs text-muted-foreground">Overall life progress</p>
-            <p className="text-[11px] text-muted-foreground">
-              {s.overall.coverage ? `Based on ${s.overall.coverage} of ${s.overall.total} areas · last ${SCORE_WINDOW_DAYS} days` : "No tracked data yet"}
+      {/* A. Welcome header + H. Quick actions */}
+      <section className="rounded-2xl border border-border bg-card p-5 shadow-[0_1px_2px_rgb(0_0_0/0.04)] sm:p-6" aria-label="Today">
+        <div className="flex flex-wrap items-start justify-between gap-5">
+          <div className="min-w-0 space-y-1.5">
+            <p className="text-[11px] font-medium uppercase tracking-[0.08em] text-muted-foreground">{formatDate(today, { weekday: "long", month: "long", day: "numeric", year: "numeric" })}</p>
+            <h1 className="text-2xl font-semibold tracking-tight sm:text-[28px]">{greeting(dates.hour)}, {name}.</h1>
+            <p className="text-sm text-muted-foreground">{dailySubtitle(today)}</p>
+            <p className="pt-1 text-sm">
+              <span className="font-medium tabular-nums">{taskSummary.done}/{taskSummary.total}</span> <span className="text-muted-foreground">tasks</span>
+              <span className="mx-2 text-border">•</span>
+              <span className="font-medium tabular-nums">{habitsDone}/{todayHabits.length}</span> <span className="text-muted-foreground">habits done today</span>
             </p>
           </div>
-          <ProgressRing value={s.overall.value} size={76} stroke={7} />
-          <CustomizeDashboard hidden={[...hidden]} />
+          <div className="flex items-center gap-3">
+            <div className="text-right">
+              <p className="text-xs font-medium">Life progress</p>
+              <p className="max-w-40 text-[11px] leading-snug text-muted-foreground">
+                {s.overall.coverage ? `${s.overall.coverage} of ${s.overall.total} areas with data · ${SCORE_WINDOW_DAYS} days` : "No tracked data yet"}
+              </p>
+            </div>
+            <ProgressRing value={s.overall.value} size={68} stroke={6} />
+            <CustomizeDashboard hidden={[...hidden]} />
+          </div>
         </div>
-      </div>
+        {show("quick") && (
+          <nav className="mt-5 flex flex-wrap gap-2 border-t border-border pt-4" aria-label="Quick actions">
+            {QUICK_ACTIONS.map((a) => (
+              <Link key={a.href} href={a.href} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border bg-background px-3 text-xs font-medium transition-colors hover:border-primary/40 hover:bg-accent hover:text-accent-foreground">
+                {a.href.includes("new=") ? <Plus className="size-3.5" /> : <a.icon className="size-3.5" />}
+                {a.href.includes("new=") ? a.label : `Open ${a.label}`}
+              </Link>
+            ))}
+          </nav>
+        )}
+      </section>
 
-      {isNewUser && (
-        <Card className="border-primary/30">
-          <CardContent className="flex flex-wrap items-center justify-between gap-3 p-4">
-            <div>
-              <p className="font-medium">Welcome to your Personal OS 👋</p>
-              <p className="text-xs text-muted-foreground">Start by setting an annual goal, adding today&apos;s tasks and one or two habits. Your dashboard fills in as you track.</p>
-            </div>
-            <div className="flex gap-2 text-sm">
-              <Link className="rounded-lg bg-primary px-3 py-1.5 text-primary-foreground" href="/goals">Set a goal</Link>
-              <Link className="rounded-lg border border-border px-3 py-1.5" href="/habits">Add a habit</Link>
-            </div>
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Life areas */}
-      {show("areas") && (
-        <section>
-          <div className="mb-3 flex items-baseline justify-between">
-            <h2 className="text-sm font-semibold">Life areas</h2>
-            <Link href="/analytics" className="text-xs text-primary hover:underline">How is this calculated?</Link>
-          </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
-            {s.scores.map((a) => {
-              const Icon = AREA_ICONS[a.key] ?? Target;
-              return (
-                <Link key={a.id} href={AREA_HREF[a.key] ?? "/analytics"} className="group rounded-xl border border-border bg-card p-3.5 transition-shadow hover:shadow-md">
-                  <div className="flex items-center justify-between">
-                    <span className="grid size-7 place-items-center rounded-lg" style={{ background: `${a.color}1f`, color: a.color }}><Icon className="size-4" /></span>
-                    <span className="text-sm font-semibold tabular-nums">{a.score === null ? <span className="text-xs font-normal text-muted-foreground">No data</span> : `${Math.round(a.score)}%`}</span>
-                  </div>
-                  <p className="mt-2 truncate text-xs font-medium">{a.name}</p>
-                  <Progress value={a.score} color={a.color} className="mt-2" />
-                </Link>
-              );
-            })}
-          </div>
+      {/* B. Daily overview */}
+      {show("overview") && (
+        <section className="grid gap-3 sm:grid-cols-3" aria-label="Daily overview">
+          <Kpi href="/tasks" icon={ListChecks} label="Tasks completed" value={`${taskSummary.done}/${taskSummary.total}`}
+            hint={taskSummary.total ? `${taskSummary.total - taskSummary.done} left today` : "Nothing due today"} alert={taskSummary.overdue ? `${taskSummary.overdue} overdue` : undefined} />
+          <Kpi href="/habits" icon={Repeat} label="Habits completed" value={`${habitsDone}/${todayHabits.length}`}
+            hint={todayHabits.length ? (habitsDone === todayHabits.length ? "All done for today" : `${todayHabits.length - habitsDone} to go`) : "No habits scheduled"} />
+          <Kpi href="/goals" icon={Target} label="Active goals" value={String(activeGoals.length)}
+            hint={goalsDueSoon ? `${goalsDueSoon} due in the next 14 days` : activeGoals.length ? "No deadlines in the next 14 days" : "Set your first goal"} />
         </section>
       )}
 
       <div className="grid gap-4 lg:grid-cols-3">
-        {show("today_tasks") && (
-          <Card className="lg:col-span-2">
+        {/* C. Daily focus */}
+        {show("focus") && (
+          <Card className="lg:col-span-2" role="region" aria-label="Daily focus">
             <CardHeader>
-              <div><CardTitle>Today&apos;s tasks</CardTitle><CardDescription>Due today and overdue</CardDescription></div>
-              <Link href="/tasks" className="text-xs text-primary hover:underline">All tasks</Link>
+              <div><CardTitle>Daily focus</CardTitle><CardDescription>Your top priorities for today</CardDescription></div>
+              <Link href="/tasks" className="inline-flex items-center gap-0.5 text-xs font-medium text-primary hover:underline">All tasks <ChevronRight className="size-3.5" /></Link>
             </CardHeader>
             <CardContent>
-              {todayTasks.length ? (
-                <div className="-mx-2">{todayTasks.slice(0, 8).map((t) => <TaskRow key={t.id} task={t} areaName={t.life_area_id ? areaById.get(t.life_area_id)?.name : undefined} />)}</div>
+              {focus.length ? (
+                <ul className="divide-y divide-border">
+                  {focus.map((t) => {
+                    const area = t.life_area_id ? areaById.get(t.life_area_id) : undefined;
+                    const overdue = t.status !== "done" && t.due_date && t.due_date < today;
+                    return (
+                      <li key={t.id} className="flex items-center gap-3 py-2.5">
+                        <TaskCheck task={t} />
+                        <div className="min-w-0 flex-1">
+                          <p className={cn("truncate text-sm font-medium", t.status === "done" && "text-muted-foreground line-through")}>{t.title}</p>
+                          <p className="mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-muted-foreground">
+                            {t.status === "done" ? <span className="text-success">Completed</span>
+                              : t.due_date ? <span className={cn(overdue && "font-medium text-destructive")}>{relativeDayLabel(t.due_date, today)}{t.due_time ? ` · ${t.due_time.slice(0, 5)}` : ""}</span>
+                              : <span>No due date</span>}
+                            {area && <span className="inline-flex items-center gap-1"><span className="size-1.5 rounded-full" style={{ background: area.color }} />{area.name}</span>}
+                          </p>
+                        </div>
+                        <Badge tone={optionTone(PRIORITIES, t.priority)}>{optionLabel(PRIORITIES, t.priority)}</Badge>
+                      </li>
+                    );
+                  })}
+                </ul>
               ) : (
-                <EmptyState icon={ListChecks} title="Nothing due today" description="Plan your day from the Tasks page." />
+                <EmptyState icon={ListChecks} title="No priorities for today" description="Tasks due today, overdue tasks and high-priority tasks without a date appear here."
+                  action={<Link href="/tasks?new=task" className="inline-flex h-8 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground"><Plus className="size-3.5" /> Create a task</Link>} />
               )}
             </CardContent>
           </Card>
         )}
 
-        {show("today_habits") && (
-          <Card>
+        {/* D. Today's habits */}
+        {show("habits") && (
+          <Card role="region" aria-label="Today's habits">
             <CardHeader>
-              <div><CardTitle>Today&apos;s habits</CardTitle><CardDescription>{habitsDone} of {todayHabits.length} completed</CardDescription></div>
-              <Link href="/habits" className="text-xs text-primary hover:underline">Habits</Link>
+              <div><CardTitle>Today&apos;s habits</CardTitle><CardDescription>{todayHabits.length ? `${habitsDone} of ${todayHabits.length} done` : "Nothing scheduled"}</CardDescription></div>
+              <Link href="/habits" className="inline-flex items-center gap-0.5 text-xs font-medium text-primary hover:underline">Habits <ChevronRight className="size-3.5" /></Link>
             </CardHeader>
-            <CardContent className="space-y-2">
+            <CardContent>
               {todayHabits.length ? (
-                todayHabits.map((h) => (
-                  <div key={h.id} className="flex items-center justify-between gap-2">
-                    <span className="flex min-w-0 items-center gap-2 text-sm"><span className="size-2 shrink-0 rounded-full" style={{ background: h.color }} /><span className="truncate">{h.name}</span></span>
-                    <HabitCheck habit={h} log={logsToday.get(h.id)} date={today} compact />
-                  </div>
-                ))
+                <ul className="space-y-1">
+                  {todayHabits.map((h) => {
+                    const log = logsToday.get(h.id);
+                    const streak = currentStreak(h, logsByHabit.get(h.id) ?? [], today, s.weekStartsOn);
+                    return (
+                      <li key={h.id} className="flex items-center gap-3 rounded-lg py-1.5">
+                        <div className="min-w-0 flex-1">
+                          <p className={cn("truncate text-sm", log?.completed && "text-muted-foreground")}>{h.name}</p>
+                          <p className="flex items-center gap-2 text-[11px] text-muted-foreground">
+                            <span>{log?.completed ? "Done" : h.kind === "measurable" ? `${log ? Number(log.value) : 0}/${Number(h.target_value)} ${h.unit ?? ""}` : "Not done yet"}</span>
+                            {streak > 0 && <span className="inline-flex items-center gap-0.5" title={`${streak}-${h.frequency === "weekly" ? "week" : "day"} streak`}><Flame className="size-3 text-orange-500" />{streak}</span>}
+                          </p>
+                        </div>
+                        <HabitCheck habit={h} log={log} date={today} compact />
+                      </li>
+                    );
+                  })}
+                </ul>
               ) : (
-                <EmptyState icon={Repeat} title="No habits scheduled" description="Create habits to build consistency." />
+                <EmptyState icon={Repeat} title="No habits today" description="Build routines that show up here every day."
+                  action={<Link href="/habits?new=habit" className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-border px-3 text-xs font-medium"><Plus className="size-3.5" /> Add a habit</Link>} />
               )}
             </CardContent>
           </Card>
         )}
+      </div>
 
-        {show("deadlines") && (
-          <Card>
-            <CardHeader><div><CardTitle>Upcoming deadlines</CardTitle><CardDescription>Next 14 days</CardDescription></div></CardHeader>
+      {/* E. Life areas (active only — same scores as Analytics) */}
+      {show("areas") && (
+        <section aria-labelledby="areas-heading">
+          <div className="mb-3 flex items-baseline justify-between gap-2">
+            <h2 id="areas-heading" className="text-sm font-semibold">Life areas</h2>
+            <Link href="/analytics" className="text-xs text-muted-foreground hover:text-primary">How is this calculated?</Link>
+          </div>
+          {s.scores.length ? (
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              {s.scores.map((a) => {
+                const Icon = AREA_ICONS[a.key] ?? Target;
+                return (
+                  <Link key={a.id} href={AREA_HREF[a.key] ?? "/analytics"} className="group rounded-xl border border-border bg-card p-3.5 transition-[border-color,box-shadow] hover:border-primary/30 hover:shadow-sm">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="grid size-7 shrink-0 place-items-center rounded-lg" style={{ background: `${a.color}1a`, color: a.color }}><Icon className="size-4" /></span>
+                      <span className="text-sm font-semibold tabular-nums">{a.score === null ? <span className="text-[11px] font-normal text-muted-foreground">No data</span> : `${Math.round(a.score)}%`}</span>
+                    </div>
+                    <p className="mt-2.5 truncate text-xs font-medium">{a.name}</p>
+                    <Progress value={a.score} color={a.color} className="mt-2" />
+                  </Link>
+                );
+              })}
+            </div>
+          ) : (
+            <EmptyState icon={Target} title="All life areas are inactive" description="Turn areas back on in Settings to see their progress." action={<Link href="/settings#life-areas" className="text-xs font-medium text-primary hover:underline">Open Settings</Link>} />
+          )}
+        </section>
+      )}
+
+      <div className="grid gap-4 lg:grid-cols-3">
+        {/* F. Weekly productivity */}
+        {show("productivity") && (
+          <Card className="lg:col-span-2" role="region" aria-label="Weekly productivity">
+            <CardHeader><div><CardTitle>Weekly productivity</CardTitle><CardDescription>Tasks and habits completed per day, last 7 days</CardDescription></div></CardHeader>
             <CardContent>
-              {deadlines.length ? (
-                <ul className="space-y-2">
-                  {deadlines.map((d) => (
-                    <li key={d.kind + d.id}>
-                      <Link href={d.href} className="flex items-center justify-between gap-2 text-sm hover:text-primary">
-                        <span className="flex min-w-0 items-center gap-2"><Badge>{d.kind}</Badge><span className="truncate">{d.title}</span></span>
-                        <span className="shrink-0 text-xs text-muted-foreground">{relativeDayLabel(d.date, today)}</span>
+              {hasProductivity
+                ? <BarSeriesChart data={productivity} xKey="day" height={200} series={[{ key: "tasks", label: "Tasks" }, { key: "habits", label: "Habits" }]} />
+                : <EmptyState icon={Activity} title="No completions in the last 7 days" description="Complete a task or check in a habit and it shows up here." />}
+            </CardContent>
+          </Card>
+        )}
+
+        {/* G. Upcoming */}
+        {show("upcoming") && (
+          <Card role="region" aria-label="Upcoming">
+            <CardHeader>
+              <div><CardTitle>Upcoming</CardTitle><CardDescription>Events and deadlines ahead</CardDescription></div>
+              <Link href="/calendar?view=agenda" className="inline-flex items-center gap-0.5 text-xs font-medium text-primary hover:underline">Calendar <ChevronRight className="size-3.5" /></Link>
+            </CardHeader>
+            <CardContent>
+              {upcoming.length ? (
+                <ul className="space-y-2.5">
+                  {upcoming.map((u) => (
+                    <li key={u.key}>
+                      <Link href={u.href} className="flex items-center gap-3 text-sm hover:text-primary">
+                        <span className="w-11 shrink-0 text-center leading-tight">
+                          <span className="block text-[10px] font-medium uppercase tracking-wide text-muted-foreground">{formatDate(u.date, { weekday: "short" })}</span>
+                          <span className="block text-sm font-semibold tabular-nums">{Number(u.date.slice(8))}</span>
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate">{u.title}</span>
+                          <span className="block text-[11px] text-muted-foreground">{u.kind} · {u.date === today ? "Today" : relativeDayLabel(u.date, today)}{u.time ? ` · ${u.time}` : ""}</span>
+                        </span>
                       </Link>
                     </li>
                   ))}
                 </ul>
-              ) : <EmptyState icon={Flag} title="No upcoming deadlines" />}
-            </CardContent>
-          </Card>
-        )}
-
-        {show("events") && (
-          <Card>
-            <CardHeader>
-              <div><CardTitle>Upcoming events</CardTitle><CardDescription>Next 7 days</CardDescription></div>
-              <Link href="/calendar" className="text-xs text-primary hover:underline">Calendar</Link>
-            </CardHeader>
-            <CardContent>
-              {upcomingEvents.length ? (
-                <ul className="space-y-2">
-                  {upcomingEvents.map((e) => (
-                    <li key={e.id + e.occurrence_date} className="flex items-center gap-3 text-sm">
-                      <span className="w-1 self-stretch rounded-full" style={{ background: e.color ?? "var(--primary)" }} />
-                      <div className="min-w-0">
-                        <p className="truncate">{e.title}</p>
-                        <p className="text-xs text-muted-foreground">{e.all_day ? `${relativeDayLabel(e.occurrence_date, today)} · all day` : formatDateTime(e.occurrence_start, s.tz)}</p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              ) : <EmptyState icon={CalendarDays} title="No events this week" />}
-            </CardContent>
-          </Card>
-        )}
-
-        {show("weekly_goals") && (
-          <Card>
-            <CardHeader>
-              <div><CardTitle>Weekly goals</CardTitle><CardDescription>Active this week</CardDescription></div>
-              <Link href="/goals?level=weekly" className="text-xs text-primary hover:underline">Goals</Link>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {weeklyGoals.length ? weeklyGoals.map((g) => {
-                const p = s.goalIndex.get(g.id).value;
-                return (
-                  <Link key={g.id} href={`/goals?open=${g.id}`} className="block">
-                    <div className="mb-1 flex justify-between text-sm"><span className="truncate">{g.title}</span><span className="text-xs tabular-nums text-muted-foreground">{formatPct(p)}</span></div>
-                    <Progress value={p} color={g.life_area_id ? areaById.get(g.life_area_id)?.color : undefined} />
-                  </Link>
-                );
-              }) : <EmptyState icon={Target} title="No weekly goals" description="Break monthly goals into weekly ones." />}
+              ) : <EmptyState icon={CalendarDays} title="Nothing coming up" description="Events in the next 7 days and deadlines in the next 14 appear here." />}
             </CardContent>
           </Card>
         )}
       </div>
-
-      {show("stats") && (
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-          <StatCard label="Active goals" value={activeGoals.length} hint={`${formatPct(avgGoal)} avg progress · ${overdueGoals} overdue`} icon={Target} />
-          <StatCard label="Goals completed" value={completedThisYear} hint={`in ${today.slice(0, 4)}`} icon={CheckCircle2} />
-          <StatCard label="Workouts" value={workoutsThisMonth} hint={`${Math.round(studyMinMonth / 6) / 10}h study this month`} icon={Dumbbell} />
-          <StatCard label="Net this month" value={formatMoney(fin.net, currency)} hint={fin.savingsRate === null ? "No income recorded" : `${formatPct(fin.savingsRate)} savings rate`} icon={Wallet} />
-        </div>
-      )}
-
-      <div className="grid gap-4 lg:grid-cols-2">
-        {show("productivity") && (
-          <Card>
-            <CardHeader><div><CardTitle>Weekly productivity</CardTitle><CardDescription>Tasks and habits completed per day</CardDescription></div></CardHeader>
-            <CardContent>
-              {hasProductivity ? (
-                <BarSeriesChart data={productivity} xKey="day" series={[{ key: "tasks", label: "Tasks" }, { key: "habits", label: "Habits" }]} />
-              ) : <EmptyState icon={Activity} title="No activity in the last 7 days" />}
-            </CardContent>
-          </Card>
-        )}
-        {show("monthly") && (
-          <Card>
-            <CardHeader><div><CardTitle>Monthly performance</CardTitle><CardDescription>Task completion rate and habit consistency (%)</CardDescription></div></CardHeader>
-            <CardContent>
-              {hasMonthly ? (
-                <BarSeriesChart data={monthly} xKey="month" unit="%" series={[{ key: "tasks", label: "Task completion" }, { key: "habits", label: "Habit consistency" }]} valueFormat={{ kind: "percent" }} />
-              ) : <EmptyState icon={Activity} title="Not enough history yet" description="Complete tasks with due dates and track habits to see monthly trends." />}
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      {show("activity") && (
-        <Card>
-          <CardHeader><div><CardTitle>Recent activity</CardTitle></div></CardHeader>
-          <CardContent>
-            {activity.length ? (
-              <ul className="divide-y divide-border">
-                {activity.map((a, i) => (
-                  <li key={i} className="flex items-center gap-3 py-2 text-sm">
-                    <a.icon className="size-4 shrink-0 text-muted-foreground" />
-                    <span className="min-w-0 flex-1 truncate">{a.text}</span>
-                    <span className="shrink-0 text-xs text-muted-foreground">{formatDateTime(a.at, s.tz)}</span>
-                  </li>
-                ))}
-              </ul>
-            ) : <EmptyState icon={LayoutDashboard} title="No activity yet" description="Your latest actions across all modules appear here." />}
-          </CardContent>
-        </Card>
-      )}
-      <p className="sr-only">{DASHBOARD_WIDGETS.length} widgets available</p>
     </div>
+  );
+}
+
+function Kpi({ href, icon: Icon, label, value, hint, alert }: { href: string; icon: LucideIcon; label: string; value: string; hint: string; alert?: string }) {
+  return (
+    <Link href={href} className="group flex items-center gap-4 rounded-xl border border-border bg-card p-4 transition-[border-color,box-shadow] hover:border-primary/30 hover:shadow-sm">
+      <span className="grid size-10 shrink-0 place-items-center rounded-xl bg-accent text-accent-foreground"><Icon className="size-5" /></span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-xs text-muted-foreground">{label}</span>
+        <span className="block text-xl font-semibold tabular-nums tracking-tight">{value}</span>
+        <span className="block truncate text-[11px] text-muted-foreground">{hint}{alert && <span className="font-medium text-destructive"> · {alert}</span>}</span>
+      </span>
+      <ChevronRight className="size-4 shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" />
+    </Link>
   );
 }

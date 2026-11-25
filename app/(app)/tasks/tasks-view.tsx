@@ -13,6 +13,7 @@ import { PRIORITIES, PROJECT_STATUSES, RECURRENCES, TASK_STATUSES, optionLabel, 
 import { addDaysISO, formatDate, formatDateTime, relativeDayLabel, todayISO } from "@/lib/dates";
 import { compareTasks } from "@/lib/engine/tasks";
 import { useDb } from "@/lib/hooks/use-db";
+import { useCreateFromQuery } from "@/lib/hooks/use-create-from-query";
 import { useTaskActions } from "@/lib/hooks/use-task-actions";
 import { cn } from "@/lib/utils";
 import { areaOptions } from "@/lib/life-areas";
@@ -85,6 +86,7 @@ export function TasksView({ tasks, projects, goals, areas, completions }: {
   }
 
   const newDefaults = () => ({ priority: "medium", status: "todo", recurrence_interval: 1, due_date: view === "today" ? today : null });
+  useCreateFromQuery(["task"], () => form.create(newDefaults()));
   const detail = detailId ? tasks.find((t) => t.id === detailId) : null;
 
   const list = view === "projects" || view === "areas" ? [] : sets[view].filter(search).sort(view === "completed" ? () => 0 : compareTasks);

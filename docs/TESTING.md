@@ -21,6 +21,11 @@ npm run build && npm run test:e2e
 ```
 The local stack applies `supabase/migrations/` to a fresh database, so the suite also validates the schema.
 
+Suites: `smoke.spec.ts` (security, all pages, core journeys), `life-areas.spec.ts`, `dashboard.spec.ts`
+(empty states, quick actions, focus/habit sync with Tasks/Habits, KPIs, upcoming order, life areas vs Settings) and
+`fitness.spec.ts` (build a program, ordered/autosaved/resumable workout, history edits, previous-performance prefill,
+progression numbers, duplicate/activate/archive/restore, phone ergonomics).
+
 What the suite covers: security headers and CSP (any CSP violation or console error fails the test), auth redirect,
 all 17 pages, no horizontal scroll at 390 px, goals/milestones/tasks progress, quick-add and recurring tasks,
 habit check-ins, finance totals, safe Markdown, workout logging with rest timer and in-app delete confirmation,
