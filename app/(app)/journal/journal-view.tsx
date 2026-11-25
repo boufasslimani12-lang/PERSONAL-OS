@@ -11,6 +11,7 @@ import { addDaysISO, formatDate, startOfMonthISO, startOfWeekISO, todayISO } fro
 import { renderMarkdown } from "@/lib/markdown";
 import { useDb } from "@/lib/hooks/use-db";
 import { cn } from "@/lib/utils";
+import { areaOptions, type AreaLike } from "@/lib/life-areas";
 import type { Row } from "@/lib/types";
 
 type Note = Row<"notes">;
@@ -25,7 +26,7 @@ const TEMPLATES: Record<Kind, string> = {
 };
 
 export function JournalView({ notes, areas, goals, projects, habits }: {
-  notes: Note[]; areas: { id: string; name: string; color: string }[]; goals: { id: string; title: string }[]; projects: { id: string; title: string }[]; habits: { id: string; name: string }[];
+  notes: Note[]; areas: (AreaLike & { color: string })[]; goals: { id: string; title: string }[]; projects: { id: string; title: string }[]; habits: { id: string; name: string }[];
 }) {
   const today = todayISO();
   const [kind, setKind] = useState<"all" | Kind>("all");
@@ -121,7 +122,7 @@ function LinkBadges({ note, areas, goals, projects, habits }: { note: Note; area
 }
 
 function NoteEditor({ note, areas, goals, projects, habits, onClose }: {
-  note: Partial<Note>; areas: { id: string; name: string }[]; goals: { id: string; title: string }[]; projects: { id: string; title: string }[]; habits: { id: string; name: string }[]; onClose: () => void;
+  note: Partial<Note>; areas: AreaLike[]; goals: { id: string; title: string }[]; projects: { id: string; title: string }[]; habits: { id: string; name: string }[]; onClose: () => void;
 }) {
   const db = useDb();
   const [v, setV] = useState({ ...note, tags: note.tags ?? [] });
@@ -168,7 +169,7 @@ function NoteEditor({ note, areas, goals, projects, habits, onClose }: {
           : <Textarea className="min-h-64 font-mono text-[13px]" value={v.content ?? ""} onChange={(e) => set("content", e.target.value)} placeholder="Write freely… Markdown supported: # heading, **bold**, - lists, > quotes, [link](https://…)" />}
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1"><Label><Tag className="mr-1 inline size-3" />Tags</Label><Input value={tagText} onChange={(e) => setTagText(e.target.value)} placeholder="gratitude, work, ideas" /></div>
-          <div className="space-y-1"><Label>Life area</Label><Select value={v.life_area_id ?? ""} onChange={(e) => set("life_area_id", e.target.value)}><option value="">—</option>{areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</Select></div>
+          <div className="space-y-1"><Label>Life area</Label><Select value={v.life_area_id ?? ""} onChange={(e) => set("life_area_id", e.target.value)}><option value="">—</option>{areaOptions(areas, note.life_area_id).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}</Select></div>
           <div className="space-y-1"><Label>Goal</Label><Select value={v.goal_id ?? ""} onChange={(e) => set("goal_id", e.target.value)}><option value="">—</option>{goals.map((g) => <option key={g.id} value={g.id}>{g.title}</option>)}</Select></div>
           <div className="space-y-1"><Label>Project</Label><Select value={v.project_id ?? ""} onChange={(e) => set("project_id", e.target.value)}><option value="">—</option>{projects.map((p) => <option key={p.id} value={p.id}>{p.title}</option>)}</Select></div>
           <div className="space-y-1"><Label>Habit</Label><Select value={v.habit_id ?? ""} onChange={(e) => set("habit_id", e.target.value)}><option value="">—</option>{habits.map((h) => <option key={h.id} value={h.id}>{h.name}</option>)}</Select></div>

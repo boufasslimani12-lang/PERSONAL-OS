@@ -15,6 +15,7 @@ import { consistency, currentStreak, longestStreak, isScheduledOn, aggregateCons
 import { formatPct } from "@/lib/format";
 import { useDb } from "@/lib/hooks/use-db";
 import { cn } from "@/lib/utils";
+import { areaOptions } from "@/lib/life-areas";
 import type { Habit, HabitLog, LifeArea } from "@/lib/types";
 
 export interface HabitTemplate { name: string; kind: "binary" | "measurable"; unit?: string; target_value: number; frequency: "daily" | "weekly" | "custom"; times_per_week?: number; category?: string }
@@ -58,7 +59,7 @@ export function HabitsBoard({ module, title, description, habits, logs, areas, w
     { name: "times_per_week", label: "Times per week", type: "number", min: 1, max: 7, required: true, showIf: (v) => v.frequency === "weekly" },
     { name: "days_of_week", label: "Days (0=Sun … 6=Sat)", type: "tags", placeholder: "1, 3, 5", showIf: (v) => v.frequency === "custom", help: "Comma-separated day numbers" },
     { name: "category", label: categoryLabel },
-    { name: "life_area_id", label: "Life area", type: "select", options: areas.map((a) => ({ value: a.id, label: a.name })) },
+    { name: "life_area_id", label: "Life area", type: "select", options: areaOptions(areas, form.record?.life_area_id ?? (form.defaults?.life_area_id as string | undefined)) },
     { name: "start_date", label: "Start date", type: "date", required: true, help: "Days before this are not counted" },
     { name: "color", label: "Color", type: "color" },
   ];

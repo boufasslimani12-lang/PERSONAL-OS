@@ -15,6 +15,7 @@ import { compareTasks } from "@/lib/engine/tasks";
 import { useDb } from "@/lib/hooks/use-db";
 import { useTaskActions } from "@/lib/hooks/use-task-actions";
 import { cn } from "@/lib/utils";
+import { areaOptions } from "@/lib/life-areas";
 import type { LifeArea, Project, Row, Task } from "@/lib/types";
 
 type View = "today" | "upcoming" | "all" | "overdue" | "completed" | "projects" | "areas";
@@ -57,7 +58,7 @@ export function TasksView({ tasks, projects, goals, areas, completions }: {
     { name: "status", label: "Status", type: "select", required: true, options: TASK_STATUSES },
     { name: "project_id", label: "Project", type: "select", options: projects.map((p) => ({ value: p.id, label: p.title })) },
     { name: "goal_id", label: "Goal", type: "select", options: goals.map((g) => ({ value: g.id, label: g.title })) },
-    { name: "life_area_id", label: "Life area", type: "select", options: areas.map((a) => ({ value: a.id, label: a.name })) },
+    { name: "life_area_id", label: "Life area", type: "select", options: areaOptions(areas, form.record?.life_area_id ?? (form.defaults?.life_area_id as string | undefined)) },
     { name: "category", label: "Category", placeholder: "e.g. admin, deep work" },
     { name: "recurrence", label: "Repeats", type: "select", options: RECURRENCES, help: "Recurring tasks need a due date" },
     { name: "recurrence_interval", label: "Every N periods", type: "number", min: 1, max: 365, required: true, showIf: (v) => !!v.recurrence && v.recurrence !== "weekdays" },
@@ -67,7 +68,7 @@ export function TasksView({ tasks, projects, goals, areas, completions }: {
     { name: "title", label: "Project name", required: true, full: true },
     { name: "description", label: "Description", type: "textarea" },
     { name: "status", label: "Status", type: "select", required: true, options: PROJECT_STATUSES },
-    { name: "life_area_id", label: "Life area", type: "select", options: areas.map((a) => ({ value: a.id, label: a.name })) },
+    { name: "life_area_id", label: "Life area", type: "select", options: areaOptions(areas, projectForm.record?.life_area_id ?? (projectForm.defaults?.life_area_id as string | undefined)) },
     { name: "goal_id", label: "Goal", type: "select", options: goals.map((g) => ({ value: g.id, label: g.title })) },
     { name: "start_date", label: "Start date", type: "date" },
     { name: "due_date", label: "Due date", type: "date" },

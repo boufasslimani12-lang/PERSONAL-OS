@@ -27,8 +27,4 @@ export const NAV: NavItem[] = [
 
 export const MOBILE_PRIMARY = ["/dashboard", "/tasks", "/habits", "/calendar"];
 
-/** Maps a life-area key to its module page. */
-export const AREA_HREF: Record<string, string> = {
-  health: "/fitness", education: "/education", languages: "/languages", hard_skills: "/skills/hard",
-  soft_skills: "/skills/soft", career: "/career", religion: "/religion", finance: "/finance", growth: "/growth", mind: "/journal",
-};
+export { AREA_HREF } from "./life-areas";

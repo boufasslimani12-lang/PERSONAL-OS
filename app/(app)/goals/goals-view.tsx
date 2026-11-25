@@ -16,6 +16,7 @@ import { useDb } from "@/lib/hooks/use-db";
 import { ToggleCheck } from "@/components/shared/toggle-check";
 import { formatPct } from "@/lib/format";
 import { cn } from "@/lib/utils";
+import { areaFilterOptions, areaOptions } from "@/lib/life-areas";
 import type { Goal, LifeArea, Row, Task } from "@/lib/types";
 
 const LEVEL_ORDER = ["annual", "quarterly", "monthly", "weekly"];
@@ -67,7 +68,7 @@ export function GoalsView({ goals, milestones, tasks, areas, progress }: {
       options: goals.filter((g) => !g.archived_at && g.level !== "weekly" && g.id !== form.record?.id).map((g) => ({ value: g.id, label: `${optionLabel(GOAL_LEVELS, g.level)} · ${g.title}` })),
       help: "Annual → Quarterly → Monthly → Weekly",
     },
-    { name: "life_area_id", label: "Life area", type: "select", options: areas.map((a) => ({ value: a.id, label: a.name })) },
+    { name: "life_area_id", label: "Life area", type: "select", options: areaOptions(areas, form.record?.life_area_id ?? (form.defaults?.life_area_id as string | undefined)) },
     { name: "priority", label: "Priority", type: "select", required: true, options: PRIORITIES },
     { name: "start_date", label: "Start date", type: "date" },
     { name: "target_date", label: "Target date", type: "date" },
@@ -98,7 +99,7 @@ export function GoalsView({ goals, milestones, tasks, areas, progress }: {
           </Select>
           <Select value={area} onChange={(e) => setArea(e.target.value)} className="w-44">
             <option value="">All life areas</option>
-            {areas.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
+            {areaFilterOptions(areas).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
           </Select>
           <label className="flex items-center gap-1.5 text-xs text-muted-foreground"><Checkbox checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} /> Archived</label>
         </div>

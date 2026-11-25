@@ -38,6 +38,15 @@ tests/                    engine unit tests
 - **Calendar** reads tasks, workouts, study sessions, goal targets and assessments directly — it never copies them into `events`.
 - **Dashboard and Analytics** both use `loadLifeSnapshot()`, so they always show identical numbers.
 
+## Active / inactive life areas
+`life_areas.is_active` is the single switch (Settings → Life areas). `lib/life-areas.ts` decides its effects:
+- **Navigation**: the app layout reads the areas on every render and hides the module page of each inactive area
+  (`AREA_HREF`; *Mind & Reflection* maps to Journal & Notes). The page stays reachable by URL and shows a notice.
+- **Scoring**: `loadLifeSnapshot()` scores active areas only, so the dashboard and analytics exclude inactive ones.
+- **Selectors**: new records offer active areas only (`areaOptions`); a record already linked to an inactive area
+  keeps it, labelled "(inactive)". Filters list every area (`areaFilterOptions`) so old records stay findable.
+- Deactivating never deletes or changes records; reactivating restores everything.
+
 ## Time zones
 The server runs in UTC. Every "today", day boundary and displayed time uses `profiles.timezone`
 (default Africa/Casablanca): `getDateContext()` on the server and `DateProvider` + `lib/dates.ts` on the client.

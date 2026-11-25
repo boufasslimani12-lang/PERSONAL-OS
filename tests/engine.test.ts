@@ -225,3 +225,18 @@ test("CSP: nonce-based scripts, Supabase-only connections, no framing", () => {
   assert.notEqual(createNonce(), createNonce());
   assert.ok(buildCsp({ nonce, supabaseUrl: "", isDev: true }).includes("'unsafe-eval'"));
 });
+
+import { activeAreas, areaFilterOptions, areaOptions, inactiveAreaPages } from "../lib/life-areas.ts";
+test("life areas: inactive areas leave navigation and new-item selectors but stay on their records", () => {
+  const areas = [
+    { id: "h", key: "health", name: "Fitness & Health", is_active: false },
+    { id: "e", key: "education", name: "Education", is_active: true },
+    { id: "m", key: "mind", name: "Mind & Reflection", is_active: false },
+  ];
+  assert.deepEqual(activeAreas(areas).map((a) => a.id), ["e"]);
+  assert.deepEqual(inactiveAreaPages(areas), [{ href: "/fitness", name: "Fitness & Health" }, { href: "/journal", name: "Mind & Reflection" }]);
+  assert.deepEqual(areaOptions(areas).map((o) => o.value), ["e"]);
+  assert.deepEqual(areaOptions(areas, "h"), [{ value: "h", label: "Fitness & Health (inactive)" }, { value: "e", label: "Education" }]);
+  assert.equal(areaFilterOptions(areas).length, 3);
+  assert.equal(areaFilterOptions(areas)[0].label, "Fitness & Health (inactive)");
+});

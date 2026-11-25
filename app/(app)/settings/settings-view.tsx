@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { Settings, Download, KeyRound, User, Layers } from "lucide-react";
 import { PageHeader } from "@/components/ui/misc";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import { CURRENCIES, WEEKDAYS } from "@/lib/constants";
 import { useDb } from "@/lib/hooks/use-db";
 import { todayISO } from "@/lib/dates";
 import type { LifeArea, Profile, TableName } from "@/lib/types";
+import { cn } from "@/lib/utils";
 
 const EXPORT_TABLES: TableName[] = [
   "profiles", "life_areas", "goals", "milestones", "projects", "tasks", "task_completions", "habits", "habit_logs", "events",
@@ -73,14 +74,14 @@ export function SettingsView({ email, profile, areas }: { email: string; profile
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader><div><CardTitle className="flex items-center gap-2"><Layers className="size-4" /> Life areas</CardTitle><CardDescription>Rename, recolor or hide areas from scoring</CardDescription></div></CardHeader>
+        <Card id="life-areas">
+          <CardHeader><div><CardTitle className="flex items-center gap-2"><Layers className="size-4" /> Life areas</CardTitle><CardDescription>Rename or recolor areas. Inactive areas are hidden from navigation and scores; their data is kept.</CardDescription></div></CardHeader>
           <CardContent className="space-y-2">
             {areas.map((a) => (
-              <div key={a.id} className="flex items-center gap-2">
+              <div key={a.id} className={cn("flex items-center gap-2 transition-opacity", !a.is_active && "opacity-60")}>
                 <input type="color" defaultValue={a.color} className="h-8 w-9 rounded border border-input bg-card p-0.5" aria-label={`${a.name} color`} onBlur={(e) => e.target.value !== a.color && db.update("life_areas", a.id, { color: e.target.value }, "Color updated")} />
                 <Input defaultValue={a.name} className="h-8" aria-label="Area name" onBlur={(e) => e.target.value.trim() && e.target.value !== a.name && db.update("life_areas", a.id, { name: e.target.value.trim() }, "Renamed")} />
-                <label className="flex shrink-0 items-center gap-1.5 text-xs text-muted-foreground"><Checkbox defaultChecked={a.is_active} onChange={(e) => db.update("life_areas", a.id, { is_active: e.target.checked }, e.target.checked ? "Area enabled" : "Area hidden")} /> Active</label>
+                <AreaActiveToggle area={a} />
               </div>
             ))}
           </CardContent>
@@ -102,5 +103,64 @@ export function SettingsView({ email, profile, areas }: { email: string; profile
         </Card>
       </div>
     </div>
+  );
+}
+
+/**
+ * Active/inactive switch for one life area.
+ * Updates immediately, locks while saving (no duplicate requests), confirms the saved value from the database
+ * (RLS scopes the update to the signed-in user; zero updated rows counts as a failure), rolls back on error,
+ * then refreshes the server-rendered app so navigation, dashboard, analytics and selectors all follow.
+ */
+function AreaActiveToggle({ area }: { area: LifeArea }) {
+  const { supabase, toast, refresh } = useDb();
+  const [checked, setChecked] = useState(area.is_active);
+  const [saving, setSaving] = useState(false);
+  const inFlight = useRef(false);
+  // Adopt the server value when it changes (e.g. after refresh or in another tab), unless a save is in progress.
+  const [serverValue, setServerValue] = useState(area.is_active);
+  if (area.is_active !== serverValue) {
+    setServerValue(area.is_active);
+    if (!saving) setChecked(area.is_active);
+  }
+
+  async function toggle(next: boolean) {
+    if (inFlight.current) return;
+    inFlight.current = true;
+    const previous = checked;
+    setChecked(next);
+    setSaving(true);
+    try {
+      const { data, error } = await supabase.from("life_areas").update({ is_active: next }).eq("id", area.id).select("is_active").maybeSingle();
+      if (error || !data || data.is_active !== next) {
+        setChecked(previous);
+        toast(`Couldn't ${next ? "reactivate" : "deactivate"} ${area.name}: ${error?.message ?? "the change was not saved. Refresh and try again."}`, "error");
+        return;
+      }
+      toast(`${area.name} ${next ? "reactivated" : "deactivated"}`);
+      refresh();
+    } catch (e) {
+      setChecked(previous);
+      toast(`Couldn't ${next ? "reactivate" : "deactivate"} ${area.name}: ${e instanceof Error ? e.message : "network error"}`, "error");
+    } finally {
+      inFlight.current = false;
+      setSaving(false);
+    }
+  }
+
+  return (
+    <label className="flex w-24 shrink-0 cursor-pointer items-center gap-1.5 text-xs text-muted-foreground" aria-busy={saving}>
+      {saving ? (
+        <span className="grid size-4 place-items-center" aria-hidden><span className="size-3.5 animate-spin rounded-full border-2 border-primary border-t-transparent" /></span>
+      ) : null}
+      <Checkbox
+        className={cn(saving && "sr-only")}
+        checked={checked}
+        disabled={saving}
+        onChange={(e) => toggle(e.target.checked)}
+        aria-label={`${area.name} active`}
+      />
+      <span className={cn(checked ? "text-foreground" : "text-muted-foreground")}>{saving ? "Saving…" : checked ? "Active" : "Inactive"}</span>
+    </label>
   );
 }

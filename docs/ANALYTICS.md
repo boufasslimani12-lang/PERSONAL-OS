@@ -14,6 +14,7 @@ All day boundaries (today, weeks, months, "completed on") are computed in the pr
 | Habit consistency | completed scheduled occurrences ÷ scheduled occurrences. Today (daily/custom) or the current week (weekly) is counted only once completed. Multi-habit = Σdone ÷ Σexpected. |
 | Streak | consecutive completed scheduled periods ending today (or yesterday if today isn't done yet). |
 | Life-area score | mean of available components: avg progress of the area's top-level goals; area task completion rate (30 d); area habit consistency (30 d). None → null. |
+| Inactive life areas | Excluded from area scores and from the overall average (and its "n of N areas" total). Their records are kept and still count in global task/habit statistics. |
 | Overall life progress | mean of non-null area scores, always displayed with coverage ("n of 10 areas"). |
 | Finance | net = income − expenses; savings rate = net ÷ income (null if income = 0); budget utilisation = spent in budgeted categories ÷ their budgets. Only profile-currency transactions are summed (no invented FX). |
 | Fitness | volume = Σ reps × weight of completed sets; e1RM (Epley) = w × (1 + reps/30); BMI = kg ÷ m². |

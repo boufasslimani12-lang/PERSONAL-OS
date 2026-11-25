@@ -12,20 +12,21 @@ function isActive(path: string, href: string) {
   return path === href || path.startsWith(href + "/");
 }
 
-function NavList({ onNavigate }: { onNavigate?: () => void }) {
+function NavList({ onNavigate, hiddenHrefs }: { onNavigate?: () => void; hiddenHrefs: string[] }) {
   const path = usePathname();
+  const items = NAV.filter((n) => !hiddenHrefs.includes(n.href));
   const groups: { key: string; label: string }[] = [
     { key: "core", label: "Plan" },
     { key: "life", label: "Life areas" },
     { key: "system", label: "Insights" },
   ];
   return (
-    <nav className="space-y-5">
-      {groups.map((g) => (
+    <nav className="space-y-5" aria-label="Main">
+      {groups.filter((g) => items.some((n) => n.group === g.key)).map((g) => (
         <div key={g.key}>
           <p className="mb-1 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">{g.label}</p>
           <ul className="space-y-0.5">
-            {NAV.filter((n) => n.group === g.key).map((n) => {
+            {items.filter((n) => n.group === g.key).map((n) => {
               const active = isActive(path, n.href);
               return (
                 <li key={n.href}>
@@ -77,12 +78,12 @@ function Brand() {
   );
 }
 
-export function Sidebar({ name }: { name: string }) {
+export function Sidebar({ name, hiddenHrefs }: { name: string; hiddenHrefs: string[] }) {
   return (
     <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 flex-col border-r border-border bg-sidebar lg:flex">
       <div className="flex h-14 items-center px-4"><Brand /></div>
       <div className="flex-1 overflow-y-auto px-2 pb-4">
-        <NavList />
+        <NavList hiddenHrefs={hiddenHrefs} />
       </div>
       <div className="flex items-center justify-between border-t border-border px-3 py-2">
         <span className="truncate text-xs text-muted-foreground">{name}</span>
@@ -95,7 +96,7 @@ export function Sidebar({ name }: { name: string }) {
   );
 }
 
-export function MobileNav() {
+export function MobileNav({ hiddenHrefs }: { hiddenHrefs: string[] }) {
   const path = usePathname();
   const [open, setOpen] = useState(false);
   const primary = NAV.filter((n) => MOBILE_PRIMARY.includes(n.href));
@@ -124,7 +125,7 @@ export function MobileNav() {
               <Brand />
               <button onClick={() => setOpen(false)} className="rounded-md p-1 hover:bg-muted" aria-label="Close menu"><X className="size-5" /></button>
             </div>
-            <NavList onNavigate={() => setOpen(false)} />
+            <NavList onNavigate={() => setOpen(false)} hiddenHrefs={hiddenHrefs} />
           </div>
         </div>
       )}

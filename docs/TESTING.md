@@ -24,6 +24,8 @@ The local stack applies `supabase/migrations/` to a fresh database, so the suite
 What the suite covers: security headers and CSP (any CSP violation or console error fails the test), auth redirect,
 all 17 pages, no horizontal scroll at 390 px, goals/milestones/tasks progress, quick-add and recurring tasks,
 habit check-ins, finance totals, safe Markdown, workout logging with rest timer and in-app delete confirmation,
-calendar events, and profile time-zone handling.
+calendar events, profile time-zone handling, and life-area activation (`tests/e2e/life-areas.spec.ts`:
+sidebar, persistence, analytics/dashboard exclusion, selectors, data kept, reactivation, several areas, simulated
+save failure with rollback, and one request per click while saving).
 
 CI (`.github/workflows/ci.yml`) runs all of the above on every push to `main` and `claude/**` and on pull requests.

@@ -1,22 +1,5 @@
-import { test as base, expect, type Page } from "@playwright/test";
-
-// Collects page errors, console errors and CSP violations for every test; each test fails if any occur.
-const test = base.extend<{ problems: string[] }>({
-  problems: async ({ page }, use) => {
-    const problems: string[] = [];
-    page.on("pageerror", (e) => problems.push(`pageerror: ${e.message}`));
-    page.on("console", (m) => {
-      if (m.type() === "error") problems.push(`console: ${m.text()}`);
-    });
-    await page.addInitScript(() => {
-      document.addEventListener("securitypolicyviolation", (e) => {
-        console.error(`CSP violation: ${e.violatedDirective} blocked ${e.blockedURI}`);
-      });
-    });
-    await use(problems);
-    expect(problems, problems.join("\n")).toEqual([]);
-  },
-});
+import type { Page } from "@playwright/test";
+import { test, expect } from "./fixtures";
 
 const ROUTES = [
   "/dashboard", "/goals", "/tasks", "/habits", "/calendar", "/fitness", "/education", "/languages",
